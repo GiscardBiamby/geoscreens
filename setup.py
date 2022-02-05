@@ -28,7 +28,7 @@ setup(
     # There are some restrictions on what makes a valid project name
     # specification here:
     # https://packaging.python.org/specifications/core-metadata/#name
-    name="PROJECT_NAME",
+    name="geo",
     #
     #
     # Versions should comply with PEP 440:
@@ -43,7 +43,7 @@ setup(
     # This is a one-line description or tagline of what your project does. This
     # corresponds to the "Summary" metadata field:
     # https://packaging.python.org/specifications/core-metadata/#summary
-    description="A sample Python project",  # Optional
+    description="Geoguessr project",  # Optional
     #
     #
     # This is an optional longer description of your project that represents
@@ -74,7 +74,7 @@ setup(
     #
     # This field corresponds to the "Home-Page" metadata field:
     # https://packaging.python.org/specifications/core-metadata/#home-page-optional
-    url="https://github.com/USERNAME/PROJECT_NAME/",
+    url="https://github.com/GiscardBiamby/geo/",
     #
     #
     # This should be your name or the name of the organization which owns the
@@ -142,7 +142,7 @@ setup(
     # 'Programming Language' classifiers above, 'pip install' will check this
     # and refuse to install the project if the version does not match. See
     # https://packaging.python.org/guides/distributing-packages-using-setuptools/#python-requires
-    python_requires=">=3.6, <4",
+    python_requires=">=3.7, <4",
     #
     #
     # This field lists other packages that your project depends on to run.
@@ -207,9 +207,9 @@ setup(
     # maintainers, and where to support the project financially. The key is
     # what's used to render the link text on PyPI.
     project_urls={  # Optional
-        "Bug Reports": "https://github.com/pypa/sampleproject/issues",
+        "Bug Reports": "https://github.com/GiscardBiamby/geo/issues",
         "Funding": "https://donate.pypi.org",
         "Say Thanks!": "http://saythanks.io/to/example",
-        "Source": "https://github.com/pypa/sampleproject/",
+        "Source": "https://github.com/GiscardBiamby/geo/",
     },
 )
