@@ -13,7 +13,7 @@ conda deactivate && conda env remove --name "${ENV_NAME}"
 rm -rf "/home/gbiamby/anaconda3/envs/${ENV_NAME}"
 
 # Create env:
-conda create --name "${ENV_NAME}" python==3.9 -y
+conda create --name "${ENV_NAME}" python=="${PYTHON_VERSION}" -y
 
 conda activate "${ENV_NAME}"
 echo "Current environment: "
@@ -25,7 +25,7 @@ echo "Installing requirements..."
 pip install --upgrade pip -c ../constraints.txt
 pip install -r ../requirements.txt -c ../constraints.txt
 
-# Make the env available for running jupyter kernels:
+# Make the python environment available for running jupyter kernels:
 python -m ipykernel install --user --name="${ENV_NAME}"
 # Install jupyter extensions
 jupyter contrib nbextension install --user

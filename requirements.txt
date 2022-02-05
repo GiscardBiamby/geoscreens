@@ -46,9 +46,9 @@ jupyterlab-snippets
 
 
 
-# ## Torch for CUDA11.x:
-# --find-links https://download.pytorch.org/whl/cu113/torch_stable.html
-# torch==1.10.1+cu113
-# --find-links https://download.pytorch.org/whl/cu113/torch_stable.html
-# torchvision==0.11.2+cu113
-# --find-links https://download.pytorch.org/whl/cu113/torch_stable.html
+## Torch for CUDA11.x:
+--find-links https://download.pytorch.org/whl/cu113/torch_stable.html
+torch==1.10.1+cu113
+--find-links https://download.pytorch.org/whl/cu113/torch_stable.html
+torchvision==0.11.2+cu113
+--find-links https://download.pytorch.org/whl/cu113/torch_stable.html
