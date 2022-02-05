@@ -1,0 +1,52 @@
+{
+    "diffEditor.ignoreTrimWhitespace": false,
+    "editor.codeActionsOnSave": {
+        "source.fixAll": true,
+        "source.organizeImports": true
+    },
+    "editor.cursorSmoothCaretAnimation": true,
+    "editor.formatOnSave": true,
+    "editor.renderControlCharacters": true,
+    "editor.renderWhitespace": "all",
+    "editor.wordWrapColumn": 100,
+    "files.exclude": {
+        "**/*.pyc": true,
+        "**/.DS_Store": true,
+        "**/.git": true,
+        "**/.pytest_cache": true,
+        "**/XDG_CACHE_HOME": true,
+        "**/__pycache__/**": true
+    },
+    "jupyter.allowUnauthorizedRemoteConnection": true,
+    "python.analysis.typeCheckingMode": "basic",
+    "python.envFile": "${workspaceFolder}/.env",
+    "python.formatting.autopep8Args": [
+        "--global-config=${workspaceFolder}/setup.cfg",
+        "--experimental"
+    ],
+    "python.formatting.blackArgs": [
+        "--line-length",
+        "100"
+    ],
+    "python.formatting.provider": "black",
+    "python.linting.enabled": true,
+    "python.linting.flake8Args": [
+        "--verbose"
+    ],
+    "python.linting.flake8Enabled": true,
+    "python.linting.pylintArgs": [
+        "--generated-members=numpy.* ,torch.* ,cv2.* , cv.*",
+    ],
+    "python.linting.pylintEnabled": true,
+    "python.testing.pytestEnabled": false,
+    "python.testing.unittestEnabled": false,
+    "rewrap.wrappingColumn": 100,
+    "spellright.documentTypes": [
+        "markdown",
+        "latex",
+        "plaintext"
+    ],
+    "spellright.language": [
+        "en_US"
+    ]
+}
