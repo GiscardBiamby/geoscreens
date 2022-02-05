@@ -35,7 +35,7 @@ jupyter contrib nbextension install --user
 # pip install mmcv-full -f https://download.openmmlab.com/mmcv/dist/cu113/1.10.1/index.html
 # pip install mmdet
 
-pip install -e . -c constraints.txt
+pip install -e . -c ../constraints.txt
 
 conda list
 
