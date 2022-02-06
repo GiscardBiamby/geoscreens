@@ -21,7 +21,7 @@ wandb
 # # are small dependencies, but also fine to remove when submiting an analytic:
 black
 flake8
-isort==4.3.21 # Version works with nbextensions.
+isort #==4.3.21 # Version works with nbextensions.
 
 # For notebooks / plotting (don't need when submitting analytic, but could also leave them in):
 ipython
