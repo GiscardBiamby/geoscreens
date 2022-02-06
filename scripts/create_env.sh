@@ -37,13 +37,23 @@ pip install mmcv-full -f https://download.openmmlab.com/mmcv/dist/cu113/1.10.1/i
 pip install mmdet -c ../constraints.txt
 # pip install icevision[all]
 
-# Install customized version of pycocotools (https://github.com/GiscardBiamby/cocobetter):
+# Install external library code:
 pushd ../lib/
+
+# Install icevision (https://github.com/airctic/icevision):
+git clone git@github.com:airctic/icevision.git
+pushd icevision
+pip install -e .[all,dev] -c ../../constraints.txt
+popd
+
+# Install customized version of pycocotools (https://github.com/GiscardBiamby/cocobetter):
 git clone git@github.com:GiscardBiamby/cocobetter.git
 pushd ./cocobetter/PythonAPI
 pip install -e .
 popd
+
 popd
 
+# We are done, show the python environment:
 conda list
 echo "Done!"
