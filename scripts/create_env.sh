@@ -10,7 +10,7 @@ echo "ENV_NAME: ${ENV_NAME}"
 
 ## Remove env if exists:
 conda deactivate && conda env remove --name "${ENV_NAME}"
-rm -rf "/home/gbiamby/anaconda3/envs/${ENV_NAME}"
+rm -rf "/home/${USER}/anaconda3/envs/${ENV_NAME}"
 
 # Create env:
 conda create --name "${ENV_NAME}" python=="${PYTHON_VERSION}" -y

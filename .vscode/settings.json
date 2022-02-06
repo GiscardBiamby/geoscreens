@@ -35,7 +35,7 @@
     ],
     "python.linting.flake8Enabled": true,
     "python.linting.pylintArgs": [
-        "--generated-members=numpy.* ,torch.* ,cv2.* , cv.*"
+        "--generated-members=numpy.* ,torch.* ,cv2.* , cv.*",
     ],
     "python.linting.pylintEnabled": false,
     "python.sortImports.path": "isort",
