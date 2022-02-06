@@ -49,7 +49,7 @@ popd
 # Install customized version of pycocotools (https://github.com/GiscardBiamby/cocobetter):
 git clone git@github.com:GiscardBiamby/cocobetter.git
 pushd ./cocobetter/PythonAPI
-pip install -e .
+pip install -e . -c ../../../constraints.txt
 popd
 
 popd
