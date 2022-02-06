@@ -41,7 +41,7 @@ pip install mmdet -c ../constraints.txt
 pushd ../lib/
 
 # Install icevision (https://github.com/airctic/icevision):
-git clone git@github.com:airctic/icevision.git
+git clone git@github.com:GiscardBiamby/icevision.git
 pushd icevision
 pip install -e .[all,dev] -c ../../constraints.txt
 popd
