@@ -30,12 +30,13 @@ python -m ipykernel install --user --name="${ENV_NAME}"
 # Install jupyter extensions
 jupyter contrib nbextension install --user
 
-# ## Object Detection Framework(s):
-# pip install icevision[all]
-# pip install mmcv-full -f https://download.openmmlab.com/mmcv/dist/cu113/1.10.1/index.html
-# pip install mmdet
 
 pip install -e . -c ../constraints.txt
+
+# ## Object Detection Framework(s):
+pip install mmcv-full -f https://download.openmmlab.com/mmcv/dist/cu113/1.10.1/index.html -c ../constraints.txt
+pip install mmdet -c ../constraints.txt
+# pip install icevision[all]
 
 conda list
 
