@@ -1,72 +1,17 @@
 from argparse import ArgumentParser
 from pathlib import Path
-from typing import List
-import torch.nn as nn
+
 import wandb
-from icevision import models, tfms
-from icevision.data import Dataset
 from icevision.metrics import COCOMetric, COCOMetricType, Metric
-from icevision.parsers.coco_parser import COCOBBoxParser
 from pytorch_lightning import LightningDataModule, Trainer, seed_everything
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.plugins import DDPPlugin
-from pytorch_lightning.utilities.cli import LightningCLI
-from torch.optim import SGD
-from torchvision.models.detection.anchor_utils import AnchorGenerator
 
 from geoscreens.consts import GEO_SCREENS, IMG_SIZE, PROJECT_ROOT
 from geoscreens.geo_data import GeoScreensDataModule
+from geoscreens.models import get_model
 from geoscreens.modules import LightModelTorch, build_module
-
-
-def get_model(parser, backend_type: str = "efficientdet", pretrained=True):
-
-    extra_args = {}
-
-    if backend_type == "mmdet":
-        model_type = models.mmdet.retinanet
-        backbone = model_type.backbones.resnet50_fpn_1x
-
-    elif backend_type == "torchvision":
-        # The Retinanet model is also implemented in the torchvision library
-        model_type = models.torchvision.retinanet
-        backbone = model_type.backbones.resnet50_fpn
-
-        anchor_sizes = tuple(
-            (x, int(x * 2 ** (1.0 / 3)), int(x * 2 ** (2.0 / 3))) for x in [32, 64, 128, 256, 512]
-        )
-        aspect_ratios = ((0.08, 0.16, 0.25, 0.36, 0.5, 0.7, 1.0, 2.0),) * len(anchor_sizes)
-        anchor_generator = AnchorGenerator(anchor_sizes, aspect_ratios)
-        extra_args.update(
-            {
-                "detections_per_img": 512,
-                "anchor_generator": anchor_generator,
-            }
-        )
-
-    elif backend_type == "efficientdet":
-        model_type = models.ross.efficientdet
-        backbone = model_type.backbones.tf_lite0
-        # The efficientdet model requires an img_size parameter
-        extra_args["img_size"] = IMG_SIZE
-
-    elif backend_type == "ultralytics":
-        model_type = models.ultralytics.yolov5
-        backbone = model_type.backbones.small
-        # The yolov5 model requires an img_size parameter
-        extra_args["img_size"] = image_size
-    else:
-        raise NotImplementedError()
-
-    model = model_type.model(
-        backbone=backbone(pretrained=pretrained), num_classes=len(parser.class_map), **extra_args
-    )
-    # print(model)
-    for obj in [backbone, model, model.backbone]:
-        if hasattr(obj, "param_groups"):
-            delattr(obj, "param_groups")
-    return model, model_type
 
 
 def main(args):
