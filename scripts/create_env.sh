@@ -30,7 +30,6 @@ python -m ipykernel install --user --name="${ENV_NAME}"
 # Install jupyter extensions
 jupyter contrib nbextension install --user
 
-
 pip install -e . -c ../constraints.txt
 
 # ## Object Detection Framework(s):
@@ -38,6 +37,13 @@ pip install mmcv-full -f https://download.openmmlab.com/mmcv/dist/cu113/1.10.1/i
 pip install mmdet -c ../constraints.txt
 # pip install icevision[all]
 
-conda list
+# Install customized version of pycocotools (https://github.com/GiscardBiamby/cocobetter):
+pushd ../lib/
+git clone git@github.com:GiscardBiamby/cocobetter.git
+pushd ./cocobetter/PythonAPI
+pip install -e .
+popd
+popd
 
+conda list
 echo "Done!"

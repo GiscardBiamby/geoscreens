@@ -8,6 +8,7 @@ ninja
 omegaconf
 opencv-python-headless
 pillow
+pybind11
 pyyaml
 requests
 setuptools
