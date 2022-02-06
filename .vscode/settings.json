@@ -35,9 +35,15 @@
     ],
     "python.linting.flake8Enabled": true,
     "python.linting.pylintArgs": [
-        "--generated-members=numpy.* ,torch.* ,cv2.* , cv.*",
+        "--generated-members=numpy.* ,torch.* ,cv2.* , cv.*"
     ],
     "python.linting.pylintEnabled": false,
+    "python.sortImports.path": "isort",
+    // No need to use this becauase the settings in setup.cfg configure isort to be compatible with black:
+    // "python.sortImports.args": [
+    //     "--profile",
+    //     "black",
+    // ],
     "python.testing.pytestEnabled": false,
     "python.testing.unittestEnabled": false,
     "rewrap.wrappingColumn": 100,
