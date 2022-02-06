@@ -1,23 +1,32 @@
 from pathlib import Path
-from icevision import models, tfms
+from icevision import tfms
 from icevision.data import Dataset, DataSplitter, RandomSplitter
+from icevision.parsers import Parser
 from icevision.parsers.coco_parser import COCOBBoxParser
 from pytorch_lightning import LightningDataModule
 
-from geoscreens.consts import GEO_SCREENS, IMG_SIZE
+from geoscreens.consts import GEO_SCREENS, IMG_SIZE, PROJECT_ROOT
 
 
 class GeoScreensDataModule(LightningDataModule):
-    def __init__(self, batch_size: int = 12, num_workers: int = 0):
+    def __init__(
+        self,
+        batch_size: int = 12,
+        num_workers: int = 0,
+        img_dir: Path = (PROJECT_ROOT / "datasets/images"),
+    ):
         super().__init__()
         self.batch_size = batch_size
         self.num_workers = num_workers
+        self.cache_path = PROJECT_ROOT / "datasets" / GEO_SCREENS / "dataset_cache.pkl"
         self.parser = COCOBBoxParser(
-            annotations_filepath=Path(f"../datasets/{GEO_SCREENS}/{GEO_SCREENS}.json").resolve(),
-            img_dir=Path("/shared/gbiamby/geo/screenshots/screen_samples_auto").resolve(),
+            annotations_filepath=(
+                PROJECT_ROOT / "datasets" / f"{GEO_SCREENS}/{GEO_SCREENS}.json"
+            ).resolve(),
+            img_dir=img_dir.resolve(),
         )
         self.train_records, self.valid_records = self.parser.parse(
-            data_splitter=RandomSplitter([0.7, 0.3], seed=233)
+            data_splitter=RandomSplitter([0.7, 0.3], seed=233), cache_filepath=self.cache_path
         )
         print("classes: ", self.parser.class_map)
 

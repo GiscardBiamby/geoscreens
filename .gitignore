@@ -76,3 +76,4 @@ notebooks/cache/
 notebooks/output/
 tmp/
 wandb/
+datasets/images/

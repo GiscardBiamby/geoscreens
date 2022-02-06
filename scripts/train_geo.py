@@ -13,11 +13,11 @@ from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.plugins import DDPPlugin
 from pytorch_lightning.utilities.cli import LightningCLI
 from torch.optim import SGD
+from torchvision.models.detection.anchor_utils import AnchorGenerator
 
-from geoscreens.consts import GEO_SCREENS, IMG_SIZE
+from geoscreens.consts import GEO_SCREENS, IMG_SIZE, PROJECT_ROOT
 from geoscreens.geo_data import GeoScreensDataModule
 from geoscreens.modules import LightModelTorch, build_module
-from torchvision.models.detection.anchor_utils import AnchorGenerator
 
 
 def get_model(parser, backend_type: str = "efficientdet", pretrained=True):
@@ -107,10 +107,7 @@ def main(args):
     steps_per_batch = len(geo_screens.train_dataloader())
     trainer = Trainer(
         max_epochs=80,
-        gpus=[
-            8,
-            9,
-        ],
+        gpus=[1],
         strategy=DDPPlugin(find_unused_parameters=False),
         precision=16,
         amp_backend="native",
@@ -136,6 +133,8 @@ if __name__ == "__main__":
     parser.add_argument("--lr", type=float, default=1e-4)
     parser.add_argument("--num_workers", type=int, default=0)
     parser.add_argument("--batch_size", type=int, default=12)
+    # parser.add_argument("--img_dir", type=Path, default=Path("/shared/gbiamby/geo/screenshots/screen_samples_auto"))
+    parser.add_argument("--img_dir", type=Path, default=(PROJECT_ROOT / "datasets/images"))
     # parser.add_argument()
     args = parser.parse_args()
     main(args)
