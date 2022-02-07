@@ -1,14 +1,44 @@
+project_name: "geoscreens"
 seed: 42
 gpus: [1]
 
-dataset:
-  img_dir: "datasets/images"
+env:
+  # Similar to cache dir, but can be used if specifically want to override where MMF stores your
+  # data. Default would be cache_dir/data. We will auto download models and datasets in this folder
+  data_dir: ${resolve_dir:ICEDET_DATA_DIR, datasets}
+
+  # Directory for saving checkpoints and other metadata Use MMF_SAVE_DIR or env.save_dir to override
+  save_dir: ${env:ICEDET_SAVE_DIR, ./save}
+
+  # Log directory for Weights and Biases, default points to same as logs Only used when
+  # training.wandb is enabled. Use MMF_WANDB_LOGDIR or env.wandb_logdir to override
+  wandb_logdir: ${env:ICEDET_WANDB_LOGDIR,}
+
+model_config:
+  framework: "torchvision"
+  name: "retinanet"
+  # backbone: "resnet_50_fpn"
+
+dataset_config:
+  dataset_name: geoscreens_001
+  # If a relative path, it's relative to PROJECT_ROOT (aka root of the git repo if you've cloned
+  # this project);
+  data_root: "./datasets"
+  img_dir: "./datasets/images"
+  img_size: 640
   batch_size: 12
   num_workers: 0
 
 training:
+  # Name of the experiment, will be used while saving checkpoints and generating reports
+  experiment_name: run
+  # Size of the batch globally. If distributed or data_parallel is used, this will be divided
+  # equally among GPUs
   batch_size: 12
+  # Number of workers to be used in dataloaders
   num_workers: 4
+  # Whether to pin memory in dataloader
+  pin_memory: false
   learning_rate: 1e-4
   params:
     max_epochs: 80
@@ -16,3 +46,31 @@ training:
     precision: 16
     amp_backend: "native"
     check_val_every_n_epoch: 5
+
+  # Weights and Biases control, by default Weights and Biases (wandb) is disabled
+  wandb:
+    # Whether to use Weights and Biases Logger, (Default: false)
+    enabled: True
+    # Project name to be used while logging the experiment with wandb
+    project: geoscreens_${oc.env:USER}
+    # Experiment/ run name to be used while logging the experiment under the project with wandb
+    name: ${training.experiment_name}
+    #  Log checkpoints created by
+    #    :class:`~pytorch_lightning.callbacks.model_checkpoint.ModelCheckpoint` as W&B artifacts.
+    #    `latest` and `best` aliases are automatically set.
+    #
+    #      * if ``log_model == 'all'``, checkpoints are logged during training.
+    #      * if ``log_model == True``, checkpoints are logged at the end of training, except when
+    #        :paramref:`~pytorch_lightning.callbacks.model_checkpoint.ModelCheckpoint.save_top_k` ``== -1``
+    #        which also logs every checkpoint during training.
+    #      * if ``log_model == False`` (default), no checkpoint is logged.
+    log_model: True
+    # Path where data is saved (wandb dir by default).
+    save_dir: ${env.wandb_logdir}
+    offline: False
+    # Sets the version, mainly used to resume a previous run.
+    id: None
+    # Enables or explicitly disables anonymous logging.
+    anonymous: False
+    # A string to put at the beginning of metric keys.
+    prefix: ""

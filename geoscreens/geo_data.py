@@ -8,7 +8,7 @@ from icevision.parsers.coco_parser import COCOBBoxParser
 from omegaconf import DictConfig, ListConfig
 from pytorch_lightning import LightningDataModule
 
-from geoscreens.consts import GEO_SCREENS, IMG_SIZE, PROJECT_ROOT
+from geoscreens.consts import PROJECT_ROOT
 
 
 class GeoScreensDataModule(LightningDataModule):
@@ -17,14 +17,12 @@ class GeoScreensDataModule(LightningDataModule):
         config: Union[DictConfig, ListConfig],
     ):
         super().__init__()
-        self.config = config = config.dataset
+        self.config = config = config.dataset_config
         print(self.config)
-        # self.batch_size = config.batch_size
-        # self.num_workers = config.num_workers
-        self.cache_path = PROJECT_ROOT / "datasets" / GEO_SCREENS / "dataset_cache.pkl"
+        self.cache_path = Path(config.data_root) / config.dataset_name / "dataset_cache.pkl"
         self.parser = COCOBBoxParser(
             annotations_filepath=(
-                PROJECT_ROOT / "datasets" / f"{GEO_SCREENS}/{GEO_SCREENS}.json"
+                Path(config.data_root) / config.dataset_name / f"{config.dataset_name}.json"
             ).resolve(),
             img_dir=(PROJECT_ROOT / config.img_dir).resolve(),
         )
@@ -39,8 +37,8 @@ class GeoScreensDataModule(LightningDataModule):
         # train_tfms = tfms.A.Adapter(
         #     [*tfms.A.aug_tfms(size=IMG_SIZE, presize=int(IMG_SIZE * 1.25)), tfms.A.Normalize()]
         # )
-        train_tfms = tfms.A.Adapter([*tfms.A.resize_and_pad(IMG_SIZE), tfms.A.Normalize()])
-        valid_tfms = tfms.A.Adapter([*tfms.A.resize_and_pad(IMG_SIZE), tfms.A.Normalize()])
+        train_tfms = tfms.A.Adapter([*tfms.A.resize_and_pad(config.img_size), tfms.A.Normalize()])
+        valid_tfms = tfms.A.Adapter([*tfms.A.resize_and_pad(config.img_size), tfms.A.Normalize()])
 
         # Datasets
         self.train_ds = Dataset(self.train_records, train_tfms)

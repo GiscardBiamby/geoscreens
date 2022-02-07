@@ -2,7 +2,6 @@ from pathlib import Path
 from typing import List, Union
 
 import torch.nn as nn
-from icevision.data import Dataset
 from icevision.metrics import COCOMetric, COCOMetricType, Metric
 from icevision.models.ross.efficientdet.lightning.model_adapter import ModelAdapter as EffDetAdapter
 from icevision.models.torchvision.retinanet.lightning.model_adapter import (
@@ -13,13 +12,18 @@ from torch.optim import SGD, Adam
 from torch.optim.lr_scheduler import MultiStepLR, ReduceLROnPlateau
 
 
-
 class LightModelEffdet(EffDetAdapter):
-    def __init__(self, model: nn.Module, metrics: List[Metric] = None, learning_rate: float = 1e-1):
+    def __init__(
+        self,
+        model: nn.Module,
+        config: DictConfig,
+        metrics: List[Metric] = None,
+    ):
         super().__init__(model, metrics=metrics)
-        self.learning_rate = learning_rate
-        print("learning_rate: ", learning_rate)
-        self.save_hyperparameters()
+        self.config = config
+        self.learning_rate = config.training.learning_rate
+        print("learning_rate: ", self.learning_rate)
+        self.save_hyperparameters(self.config.training)
 
     def configure_optimizers(self):
         optimizer = SGD(self.parameters(), lr=self.hparams.learning_rate)
@@ -56,16 +60,11 @@ class LightModelEffdet(EffDetAdapter):
         return self.model(*args, **kwargs)
 
     def training_step(self, batch, batch_idx):
-        # print("batch: ", batch)
-        # print("batch_Idx: ", batch_idx)
         result = super().training_step(batch, batch_idx)
-        # print("training_step().result type: ", type(result))
         return result
 
     def training_step_end(self, *args, **kwargs):
-        # print("training_step_end")
         result = super().training_step_end(*args, **kwargs)
-        # print("training_step_end.result type: ", type(result))
         return result
 
 
@@ -75,8 +74,6 @@ class LightModelTorch(TorchRetinaNetAdapter):
         model: nn.Module,
         config: DictConfig,
         metrics: List[Metric] = None,
-        # learning_rate: float = 1e-4,
-        # batch_size: int = 8,
     ):
         super().__init__(model, metrics=metrics)
         self.config = config
@@ -119,22 +116,17 @@ class LightModelTorch(TorchRetinaNetAdapter):
         return self.model(*args, **kwargs)
 
     def training_step(self, batch, batch_idx):
-        # print("batch: ", batch)
-        # print("batch_Idx: ", batch_idx)
         result = super().training_step(batch, batch_idx)
-        # print("training_step().result type: ", type(result))
         return result
 
     def training_step_end(self, *args, **kwargs):
-        # print("training_step_end")
         result = super().training_step_end(*args, **kwargs)
-        # print("training_step_end.result type: ", type(result))
         return result
 
 
 def build_module(model_type: str, model, config: DictConfig, **kwargs):
     if model_type == "efficientdet":
-        return LightModelEffdet(model, **kwargs)
+        return LightModelEffdet(model, config, **kwargs)
     elif model_type == "torchvision":
         return LightModelTorch(model, config, **kwargs)
     else:
