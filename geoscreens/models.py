@@ -5,22 +5,25 @@ from icevision import models
 from omegaconf import DictConfig
 from torchvision.models.detection.anchor_utils import AnchorGenerator
 
-from geoscreens.consts import IMG_SIZE
 
-
-def get_model_torchvision(extra_args):
+def get_model_torchvision(config: DictConfig, extra_args):
     # The Retinanet model is also implemented in the torchvision library
     model_type = models.torchvision.retinanet
-    backbone = model_type.backbones.resnet50_fpn
-
-    anchor_sizes = tuple(
-        (x, int(x * 2 ** (1.0 / 3)), int(x * 2 ** (2.0 / 3))) for x in [32, 64, 128, 256, 512]
-    )
-    aspect_ratios = ((0.08, 0.16, 0.25, 0.36, 0.5, 0.7, 1.0, 2.0),) * len(anchor_sizes)
+    backbone = models.torchvision.retinanet.backbones.resnet50_fpn
+    model_config = config.model_config
+    sizes = model_config.params.get("anchor_sizes", [32, 64, 128, 256, 512])
+    anchor_sizes = tuple((x, int(x * 2 ** (1.0 / 3)), int(x * 2 ** (2.0 / 3))) for x in sizes)
+    ratios = model_config.params.get("aspect_ratios", [0.5, 1.0, 2.0])
+    aspect_ratios = (tuple(ratios),) * len(anchor_sizes)
     anchor_generator = AnchorGenerator(anchor_sizes, aspect_ratios)
+    # For possible params, see: $ENV/site-packages/torchvision/models/detection/retinanet.py
     extra_args.update(
         {
-            "detections_per_img": 512,
+            "detections_per_img": model_config.params.get("detections_per_img", 300),
+            "score_thresh": model_config.params.get("score_thresh", 0.05),
+            "nms_thresh": model_config.params.get("nms_thresh", 0.5),
+            "fg_iou_thresh": model_config.params.get("fg_iou_thresh", 0.5),
+            "bg_iou_thresh": model_config.params.get("bg_iou_thresh", 0.4),
             "anchor_generator": anchor_generator,
         }
     )
@@ -37,7 +40,7 @@ def get_model(config: DictConfig, parser, pretrained=True) -> Tuple[Any, ModuleT
         backbone = model_type.backbones.resnet50_fpn_1x
 
     elif model_config.framework == "torchvision":
-        model_type, backbone = get_model_torchvision(extra_args)
+        model_type, backbone = get_model_torchvision(config, extra_args)
 
     elif model_config.framework == "ross":
         model_type = models.ross.efficientdet
