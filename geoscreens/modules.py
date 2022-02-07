@@ -21,36 +21,28 @@ class LightModelEffdet(EffDetAdapter):
     ):
         super().__init__(model, metrics=metrics)
         self.config = config
-        self.learning_rate = config.training.learning_rate
+        self.learning_rate = config.optimizer.params.lr
         print("learning_rate: ", self.learning_rate)
         self.save_hyperparameters(self.config.training)
 
     def configure_optimizers(self):
-        optimizer = SGD(self.parameters(), lr=self.hparams.learning_rate)
+        optimizer_type = self.config.optimizer.type
+        if optimizer_type.lower() == "adam":
+            optimizer = Adam(self.parameters(), **self.config.optimizer.params)
+        else:
+            raise NotImplementedError()
+
+        scheduler_type = self.config.scheduler.type
+        if scheduler_type.lower() == "reducelronplateau":
+            scheduler = ReduceLROnPlateau(optimizer, **self.config.scheduler.params)
+        else:
+            raise NotImplementedError()
+
         return {
             "optimizer": optimizer,
             "lr_scheduler": {
-                "scheduler": ReduceLROnPlateau(
-                    optimizer, mode="min", factor=0.5, patience=2, min_lr=1e-8
-                ),
-                # The unit of the scheduler's step size, could also be 'step'. 'epoch' updates the
-                # scheduler on epoch end whereas 'step' updates it after a optimizer update.
-                "interval": "epoch",
-                # Metric to to monitor for schedulers like `ReduceLROnPlateau`
-                "monitor": "train_loss",
-                # If set to `True`, will enforce that the value specified 'monitor' is available
-                # when the scheduler is updated, thus stopping training if not found. If set to
-                # `False`, it will only produce a warning
-                "strict": True,
-                # How many epochs/steps should pass between calls to `scheduler.step()`. 1
-                # corresponds to updating the learning rate after every epoch/step.
-                #
-                # If "monitor" references validation metrics, then "frequency" should be set to a
-                # multiple of "trainer.check_val_every_n_epoch".
-                "frequency": 1,
-                # If using the `LearningRateMonitor` callback to monitor the learning rate progress,
-                # this keyword can be used to specify a custom logged name
-                "name": None,
+                "scheduler": scheduler,
+                **self.config.scheduler.config,
             },
         }
 
@@ -77,36 +69,28 @@ class LightModelTorch(TorchRetinaNetAdapter):
     ):
         super().__init__(model, metrics=metrics)
         self.config = config
-        self.learning_rate = config.training.learning_rate
+        self.learning_rate = config.optimizer.params.lr
         print("learning_rate: ", self.learning_rate)
         self.save_hyperparameters(self.config.training)
 
     def configure_optimizers(self):
-        optimizer = Adam(self.parameters(), lr=self.hparams.learning_rate)
+        optimizer_type = self.config.optimizer.type
+        if optimizer_type.lower() == "adam":
+            optimizer = Adam(self.parameters(), **self.config.optimizer.params)
+        else:
+            raise NotImplementedError()
+
+        scheduler_type = self.config.scheduler.type
+        if scheduler_type.lower() == "reducelronplateau":
+            scheduler = ReduceLROnPlateau(optimizer, **self.config.scheduler.params)
+        else:
+            raise NotImplementedError()
+
         return {
             "optimizer": optimizer,
             "lr_scheduler": {
-                "scheduler": ReduceLROnPlateau(
-                    optimizer, mode="min", factor=0.6, patience=10, min_lr=1e-8
-                ),
-                # The unit of the scheduler's step size, could also be 'step'. 'epoch' updates the
-                # scheduler on epoch end whereas 'step' updates it after a optimizer update.
-                "interval": "epoch",
-                # Metric to to monitor for schedulers like `ReduceLROnPlateau`
-                "monitor": "train_loss",
-                # If set to `True`, will enforce that the value specified 'monitor' is available
-                # when the scheduler is updated, thus stopping training if not found. If set to
-                # `False`, it will only produce a warning
-                "strict": True,
-                # How many epochs/steps should pass between calls to `scheduler.step()`. 1
-                # corresponds to updating the learning rate after every epoch/step.
-                #
-                # If "monitor" references validation metrics, then "frequency" should be set to a
-                # multiple of "trainer.check_val_every_n_epoch".
-                "frequency": 1,
-                # If using the `LearningRateMonitor` callback to monitor the learning rate progress,
-                # this keyword can be used to specify a custom logged name
-                "name": None,
+                "scheduler": scheduler,
+                **self.config.scheduler.config,
             },
         }
 
@@ -124,10 +108,11 @@ class LightModelTorch(TorchRetinaNetAdapter):
         return result
 
 
-def build_module(model_type: str, model, config: DictConfig, **kwargs):
-    if model_type == "efficientdet":
+def build_module(model, config: DictConfig, **kwargs):
+    model_config: DictConfig = config.model_config
+    if model_config.framework == "ross":
         return LightModelEffdet(model, config, **kwargs)
-    elif model_type == "torchvision":
+    elif model_config.framework == "torchvision":
         return LightModelTorch(model, config, **kwargs)
     else:
         raise NotImplementedError()

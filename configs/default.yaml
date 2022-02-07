@@ -17,6 +17,7 @@ env:
   wandb_logdir: ${env:ICEDET_WANDB_LOGDIR,}
 
 model_config:
+  # Options: torchvision, mmdet, ross, ultralytics
   framework: "torchvision"
   name: "retinanet"
   # backbone: "resnet_50_fpn"
@@ -44,7 +45,6 @@ training:
   num_workers: 4
   # Whether to pin memory in dataloader
   pin_memory: false
-  learning_rate: 1e-4
 
   # After `checkpoint_interval` number of updates, MMF will make a snapshot which will involve
   # creating a checkpoint for current training scenarios
@@ -53,6 +53,7 @@ training:
   # of updates
   evaluation_interval: 1000
 
+  # These are passed to the constructor for the Lightning Trainer
   params:
     max_epochs: 1
     gpus: [1]
@@ -100,3 +101,44 @@ training:
     anonymous: null
     # A string to put at the beginning of metric keys.
     prefix: ""
+    notes: ""
+    group: ""
+    job_type: ""
+    entity: ""
+
+optimizer:
+  type: "adam"
+  params:
+    lr: 1e-4
+    # betas: null
+    # eps: 1e-8
+    # weight_decay: 0
+    # amsgrad: false
+
+scheduler:
+  type: "ReduceLROnPlateau"
+  params:
+    mode: "min"
+    factor: 0.6
+    patience: 10
+    min_lr: 1e-7
+    verbose: True
+  config:
+    # The unit of the scheduler's step size, could also be 'step'. 'epoch' updates the scheduler on
+    # epoch end whereas 'step' updates it after a optimizer update.
+    interval: "epoch"
+    # Metric to to monitor for schedulers like `ReduceLROnPlateau`
+    monitor: "train_loss"
+    # If set to `True`, will enforce that the value specified 'monitor' is available when the
+    # scheduler is updated, thus stopping training if not found. If set to `False`, it will only
+    # produce a warning
+    strict: True
+    # How many epochs/steps should pass between calls to `scheduler.step()`. 1 corresponds to
+    # updating the learning rate after every epoch/step.
+    #
+    # If "monitor" references validation metrics, then "frequency" should be set to a multiple of
+    # "trainer.check_val_every_n_epoch".
+    frequency: 1
+    # If using the `LearningRateMonitor` callback to monitor the learning rate progress, this
+    # keyword can be used to specify a custom logged name
+    name: None

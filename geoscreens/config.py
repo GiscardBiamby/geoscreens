@@ -45,7 +45,7 @@ def build_config(args: Namespace) -> DictConfig:
     # TODO: Fix this to not have anything hardcoded:
     exp_id = (
         f"{config.dataset_config.dataset_name}-model_{config.model_config.name}-"
-        f"lr_{config.training.learning_rate}-"
+        f"lr_{config.optimizer.params.lr}-"
         f"ratios_0.08_to_2.0-sizes_32_to_512-detsperimg_512"
     )
     config.exp_id = exp_id

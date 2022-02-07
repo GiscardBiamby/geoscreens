@@ -90,15 +90,13 @@ def configure_callbacks(config: DictConfig) -> List[Callback]:
 def train_geo(config: DictConfig) -> None:
     seed_everything(config.seed, workers=True)
     geoscreens_data = GeoScreensDataModule(config)
-    # TODO: Remove this, use config object instead
-    model_name = config.model_config.framework
     metrics = [COCOMetric(metric_type=COCOMetricType.bbox, show_pbar=True)]
 
     print("creating model")
 
-    model, model_type = get_model(config, geoscreens_data.parser, backend_type=model_name)
+    model, model_type = get_model(config, geoscreens_data.parser)
     geoscreens_data.set_model_type(model_type)
-    light_model = build_module(model_name, model, config, metrics=metrics)
+    light_model = build_module(model, config, metrics=metrics)
     wandb_logger = build_wandb_logger(config, light_model)
     callbacks = configure_callbacks(config)
     trainer = Trainer(
