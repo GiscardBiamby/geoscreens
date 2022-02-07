@@ -1,4 +1,5 @@
 project_name: "geoscreens"
+exp_id: null
 seed: 42
 gpus: [1]
 
@@ -7,11 +8,12 @@ env:
   # data. Default would be cache_dir/data. We will auto download models and datasets in this folder
   data_dir: ${resolve_dir:ICEDET_DATA_DIR, datasets}
 
-  # Directory for saving checkpoints and other metadata Use MMF_SAVE_DIR or env.save_dir to override
-  save_dir: ${env:ICEDET_SAVE_DIR, ./save}
+  # Directory for saving checkpoints and other metadata Use ICEDET_SAVE_DIR or env.save_dir to
+  # override. This will get the exp_id appended as a subdirectory automatically.
+  save_dir: ${env:ICEDET_SAVE_DIR, ./output}
 
   # Log directory for Weights and Biases, default points to same as logs Only used when
-  # training.wandb is enabled. Use MMF_WANDB_LOGDIR or env.wandb_logdir to override
+  # training.wandb is enabled. Use ICEDET_WANDB_LOGDIR or env.wandb_logdir to override
   wandb_logdir: ${env:ICEDET_WANDB_LOGDIR,}
 
 model_config:
@@ -24,10 +26,13 @@ dataset_config:
   # If a relative path, it's relative to PROJECT_ROOT (aka root of the git repo if you've cloned
   # this project);
   data_root: "./datasets"
+  # If a relative path, it's relative to PROJECT_ROOT (aka root of the git repo if you've cloned
+  # this project);
   img_dir: "./datasets/images"
   img_size: 640
-  batch_size: 12
-  num_workers: 0
+  batch_size: ${training.batch_size}
+  num_workers: ${training.num_workers}
+  pin_memory: ${training.pin_memory}
 
 training:
   # Name of the experiment, will be used while saving checkpoints and generating reports
@@ -40,12 +45,33 @@ training:
   # Whether to pin memory in dataloader
   pin_memory: false
   learning_rate: 1e-4
+
+  # After `checkpoint_interval` number of updates, MMF will make a snapshot which will involve
+  # creating a checkpoint for current training scenarios
+  checkpoint_interval: 1000
+  # This will evaluate evaluation metrics on whole validation set after evaluation interval number
+  # of updates
+  evaluation_interval: 1000
+
   params:
-    max_epochs: 80
+    max_epochs: 1
     gpus: [1]
     precision: 16
     amp_backend: "native"
     check_val_every_n_epoch: 5
+
+  early_stop:
+    # Whether to use early stopping, (Default: false)
+    enabled: false
+    # Patience for early stoppings
+    patience: 4000
+    # Criteria to be monitored for early stopping total_loss will monitor combined loss from all of
+    # the tasks Criteria can also be an evaluation metric in this format `dataset/metric` for e.g.
+    # vqa2/vqa_accuracy
+    criteria: total_loss
+    # Whether the monitored criteria should be minimized for early stopping or not, for e.g. you
+    # would want to minimize loss but maximize an evaluation metric like accuracy etc.
+    minimize: true
 
   # Weights and Biases control, by default Weights and Biases (wandb) is disabled
   wandb:
@@ -69,8 +95,8 @@ training:
     save_dir: ${env.wandb_logdir}
     offline: False
     # Sets the version, mainly used to resume a previous run.
-    id: None
+    id: null
     # Enables or explicitly disables anonymous logging.
-    anonymous: False
+    anonymous: null
     # A string to put at the beginning of metric keys.
     prefix: ""

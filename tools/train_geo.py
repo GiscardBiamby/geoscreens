@@ -1,13 +1,14 @@
 import sys
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
-from typing import Union
+from typing import List, Optional, Union, cast
 
 import wandb
 from icevision.metrics import COCOMetric, COCOMetricType, Metric
 from omegaconf import DictConfig, ListConfig, OmegaConf
 from pytorch_lightning import LightningDataModule, Trainer, seed_everything
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
+from pytorch_lightning.callbacks.base import Callback
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.loggers.base import DummyLogger, LoggerCollection
 from pytorch_lightning.plugins import DDPPlugin
@@ -35,29 +36,105 @@ def param_search(config, geo_screens, model_name, metrics):
     pass
 
 
+def monitor_criteria(config: DictConfig):
+    monitor_criteria = config.training.early_stop.get("criteria", None)
+    assert monitor_criteria, "monitor criteria is required when early stop is specified."
+    if "val" not in monitor_criteria:
+        monitor_criteria = f"val/{monitor_criteria}"
+    mode = "min" if config.training.early_stop.get("minimize", False) else "max"
+    return monitor_criteria, mode
+
+
+def configure_monitor_callbacks(config: DictConfig) -> List[ModelCheckpoint]:
+    criteria, mode = monitor_criteria(config)
+    monitor_callback = ModelCheckpoint(
+        monitor=criteria,
+        dirpath=config.env.save_dir,
+        filename="best",
+        mode=mode,
+        save_top_k=1,
+        save_last=False,
+        verbose=True,
+    )
+    return [monitor_callback]
+
+
+def configure_earlystop_callback(config: DictConfig) -> List[ModelCheckpoint]:
+    return []
+
+
+def configure_checkpoint_callbacks(config: DictConfig) -> List[ModelCheckpoint]:
+    checkpoint_callback = ModelCheckpoint(
+        monitor="COCOMetric",
+        every_n_train_steps=config.training.checkpoint_interval,
+        dirpath=config.env.save_dir,
+        filename="geoscreens-{epoch:02d}-coco_ap50_{COCOMetric:.2f}",
+        mode="max",
+        save_last=True,
+        verbose=True,
+    )
+    checkpoint_callback.CHECKPOINT_NAME_LAST = "current"
+    return [checkpoint_callback]
+
+
+def configure_callbacks(config: DictConfig) -> List[Callback]:
+    callbacks = []
+    callbacks += configure_checkpoint_callbacks(config)
+    if config.training.get("early_stop", None) and config.training.early_stop.get("enabled", False):
+        callbacks += configure_monitor_callbacks(config)
+        callbacks += configure_earlystop_callback(config)
+    callbacks.append(LearningRateMonitor(logging_interval="step"))
+    return callbacks
+
+
 def train_geo(config: DictConfig) -> None:
     seed_everything(config.seed, workers=True)
-    print("CONFIG: ", *config.training)
-    geo_screens = GeoScreensDataModule(config)
-    # model_name = "efficientdet"
+    geoscreens_data = GeoScreensDataModule(config)
+    # TODO: Remove this, use config object instead
     model_name = config.model_config.framework
     metrics = [COCOMetric(metric_type=COCOMetricType.bbox, show_pbar=True)]
 
-    # param_search(config, geo_screens, model_name, metrics)
-
     print("creating model")
-    exp_id = f"gs005_model_{model_name}-lr_{config.training.learning_rate}-ratios_0.08_to_2.0-sizes_32_to_512-detsperimg_512"
-    save_dir = Path(f"./output/{exp_id}").resolve()
-    save_dir.mkdir(exist_ok=True, parents=True)
-    checkpoint_callback = ModelCheckpoint(
-        monitor="COCOMetric",
-        mode="max",
-        dirpath=save_dir,
-        filename="geoscreens-{epoch:02d}-coco_ap50_{COCOMetric:.2f}",
-    )
-    model, model_type = get_model(geo_screens.parser, backend_type=model_name)
-    geo_screens.set_model_type(model_type)
+
+    model, model_type = get_model(config, geoscreens_data.parser, backend_type=model_name)
+    geoscreens_data.set_model_type(model_type)
     light_model = build_module(model_name, model, config, metrics=metrics)
+    wandb_logger = build_wandb_logger(config, light_model)
+    callbacks = configure_callbacks(config)
+    trainer = Trainer(
+        strategy=DDPPlugin(find_unused_parameters=False),
+        logger=wandb_logger or DummyLogger(),
+        callbacks=callbacks,
+        log_every_n_steps=min(len(geoscreens_data.train_dataloader()) // 4, 50),
+        **config.training.params,
+    )
+
+    trainer.fit(light_model, datamodule=geoscreens_data)
+    checkpoint_callback = get_checkpoint_callback(callbacks)
+    print("Best model: ", checkpoint_callback.best_model_path)
+    # trainer.test(light_model, datamodule=geo_screens)
+    if config.training.wandb.enabled and wandb_logger:
+        wandb_logger.finalize("")
+        wandb.finish()
+
+
+def get_checkpoint_callback(callbacks):
+    checkpoint_callback = cast(
+        ModelCheckpoint,
+        next(
+            (
+                cb
+                for cb in callbacks
+                if isinstance(cb, ModelCheckpoint) and cb.CHECKPOINT_NAME_LAST == "current"
+            ),
+            None,
+        ),
+    )
+
+    return checkpoint_callback
+
+
+def build_wandb_logger(config, light_model) -> Optional[WandbLogger]:
     if config.training.wandb.enabled:
         wandb_config: DictConfig = config.training.wandb.copy()
         OmegaConf.set_struct(wandb_config, False)
@@ -67,25 +144,8 @@ def train_geo(config: DictConfig) -> None:
             **wandb_config,
         )
         wandb_logger.watch(light_model)
-    steps_per_batch = len(geo_screens.train_dataloader())
-    trainer = Trainer(
-        strategy=DDPPlugin(find_unused_parameters=False),
-        logger=wandb_logger if config.training.wandb.enabled else DummyLogger(),
-        callbacks=[
-            checkpoint_callback,
-            LearningRateMonitor(logging_interval="step"),
-        ],
-        log_every_n_steps=min(steps_per_batch // 4, 50),
-        **config.training.params,
-    )
-
-    print("training")
-    trainer.fit(light_model, datamodule=geo_screens)
-    print("Best model: ", checkpoint_callback.best_model_path)
-    # trainer.test(light_model, datamodule=geo_screens)
-    if config.training.wandb.enabled:
-        wandb_logger.close()
-        wandb.finish()
+        return wandb_logger
+    return None
 
 
 if __name__ == "__main__":

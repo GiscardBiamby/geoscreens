@@ -24,7 +24,7 @@ class GeoScreensDataModule(LightningDataModule):
             annotations_filepath=(
                 Path(config.data_root) / config.dataset_name / f"{config.dataset_name}.json"
             ).resolve(),
-            img_dir=(PROJECT_ROOT / config.img_dir).resolve(),
+            img_dir=config.img_dir,
         )
         self.train_records, self.valid_records = self.parser.parse(
             data_splitter=RandomSplitter([0.7, 0.3], seed=233), cache_filepath=self.cache_path
@@ -50,11 +50,14 @@ class GeoScreensDataModule(LightningDataModule):
         self.ModelType = model_type
 
     def train_dataloader(self):
+        # Can pass any arguments here as **kwargs, and they will be passed into the constructor for
+        # a pytorch DataLoader:
         return self.ModelType.train_dl(
             self.train_ds,
             batch_size=self.config.batch_size,
             num_workers=self.config.num_workers,
             shuffle=True,
+            pin_memory=self.config.pin_memory,
         )
 
     def val_dataloader(self):
@@ -63,6 +66,7 @@ class GeoScreensDataModule(LightningDataModule):
             batch_size=self.config.batch_size,
             num_workers=self.config.num_workers,
             shuffle=False,
+            pin_memory=self.config.pin_memory,
         )
 
     def test_dataloader(self):
@@ -71,6 +75,7 @@ class GeoScreensDataModule(LightningDataModule):
             batch_size=self.config.batch_size,
             num_workers=self.config.num_workers,
             shuffle=False,
+            pin_memory=self.config.pin_memory,
         )
 
     def predict_dataloader(self):
@@ -79,4 +84,5 @@ class GeoScreensDataModule(LightningDataModule):
             batch_size=self.config.batch_size,
             num_workers=self.config.num_workers,
             shuffle=False,
+            pin_memory=self.config.pin_memory,
         )

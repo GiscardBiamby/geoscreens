@@ -1,10 +1,16 @@
-from icevision import models, tfms
+from types import ModuleType
+from typing import Any, Tuple
+
+from icevision import models
+from omegaconf import DictConfig
 from torchvision.models.detection.anchor_utils import AnchorGenerator
 
-from geoscreens.consts import GEO_SCREENS, IMG_SIZE
+from geoscreens.consts import IMG_SIZE
 
 
-def get_model(parser, backend_type: str = "efficientdet", pretrained=True):
+def get_model(
+    config: DictConfig, parser, backend_type: str = "efficientdet", pretrained=True
+) -> Tuple[Any, ModuleType]:
 
     extra_args = {}
 
@@ -33,7 +39,7 @@ def get_model(parser, backend_type: str = "efficientdet", pretrained=True):
         model_type = models.ross.efficientdet
         backbone = model_type.backbones.tf_lite0
         # The efficientdet model requires an img_size parameter
-        extra_args["img_size"] = IMG_SIZE
+        extra_args["img_size"] = config.datataset_config.img_size
 
     elif backend_type == "ultralytics":
         model_type = models.ultralytics.yolov5
