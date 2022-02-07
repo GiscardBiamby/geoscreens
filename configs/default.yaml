@@ -41,6 +41,8 @@ dataset_config:
   # this project);
   img_dir: "./datasets/images"
   img_size: 640
+  # Include an extra class in num_classes for the background class (which gets added automatically)
+  num_classes: 47
   batch_size: ${training.batch_size}
   num_workers: ${training.num_workers}
   pin_memory: ${training.pin_memory}

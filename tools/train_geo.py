@@ -1,5 +1,5 @@
 import sys
-from argparse import ArgumentParser, Namespace
+from argparse import ArgumentParser
 from pathlib import Path
 from typing import List, Optional, Union, cast
 
@@ -14,10 +14,10 @@ from pytorch_lightning.loggers.base import DummyLogger, LoggerCollection
 from pytorch_lightning.plugins import DDPPlugin
 
 from geoscreens.config import build_config
-from geoscreens.consts import GEO_SCREENS, PROJECT_ROOT
+from geoscreens.consts import PROJECT_ROOT
 from geoscreens.geo_data import GeoScreensDataModule
 from geoscreens.models import get_model
-from geoscreens.modules import LightModelTorch, build_module
+from geoscreens.modules import build_module
 
 
 def param_search(config, geo_screens, model_name, metrics):
@@ -89,13 +89,12 @@ def configure_callbacks(config: DictConfig) -> List[Callback]:
 
 def train_geo(config: DictConfig) -> None:
     seed_everything(config.seed, workers=True)
-    geoscreens_data = GeoScreensDataModule(config)
     metrics = [COCOMetric(metric_type=COCOMetricType.bbox, show_pbar=True)]
 
     print("creating model")
 
-    model, model_type = get_model(config, geoscreens_data.parser)
-    geoscreens_data.set_model_type(model_type)
+    model, model_type = get_model(config)
+    geoscreens_data = GeoScreensDataModule(config, model_type)
     light_model = build_module(model, config, metrics=metrics)
     wandb_logger = build_wandb_logger(config, light_model)
     callbacks = configure_callbacks(config)

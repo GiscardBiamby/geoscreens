@@ -1,15 +1,22 @@
 from types import ModuleType
 from typing import Any, Tuple
 
-from icevision import models
+import torch.nn as nn
+from icevision.backbones import BackboneConfig
+from icevision.models.mmdet.utils import MMDetBackboneConfig
+from icevision.models.ross.efficientdet.utils import EfficientDetBackboneConfig
+from icevision.models.torchvision.backbones.backbone_config import TorchvisionBackboneConfig
+from icevision.models.ultralytics.yolov5.utils import YoloV5BackboneConfig
 from omegaconf import DictConfig
 from torchvision.models.detection.anchor_utils import AnchorGenerator
 
 
-def get_model_torchvision(config: DictConfig, extra_args):
-    # The Retinanet model is also implemented in the torchvision library
-    model_type = models.torchvision.retinanet
-    backbone = models.torchvision.retinanet.backbones.resnet50_fpn
+def get_model_torchvision(
+    config: DictConfig, extra_args: dict
+) -> Tuple[ModuleType, TorchvisionBackboneConfig]:
+    import icevision.models.torchvision.retinanet as tv
+
+    backbone = tv.backbones.resnet50_fpn
     model_config = config.model_config
     sizes = model_config.params.get("anchor_sizes", [32, 64, 128, 256, 512])
     anchor_sizes = tuple((x, int(x * 2 ** (1.0 / 3)), int(x * 2 ** (2.0 / 3))) for x in sizes)
@@ -27,40 +34,59 @@ def get_model_torchvision(config: DictConfig, extra_args):
             "anchor_generator": anchor_generator,
         }
     )
-    return model_type, backbone
+    return tv, backbone
 
 
-def get_model(config: DictConfig, parser, pretrained=True) -> Tuple[Any, ModuleType]:
+def get_model_mmdet(config: DictConfig, extra_args: dict) -> Tuple[ModuleType, MMDetBackboneConfig]:
+    import icevision.models.mmdet as mmdet
+
+    backbone = mmdet.retinanet.backbones.resnet50_fpn_1x
+    return mmdet.retinanet, backbone
+
+
+def get_model_ross(
+    config: DictConfig, extra_args: dict
+) -> Tuple[ModuleType, EfficientDetBackboneConfig]:
+    import icevision.models.ross.efficientdet as tv
+
+    backbone = tv.backbones.tf_lite0
+    extra_args["img_size"] = config.dataset_config.img_size
+    return tv, backbone
+
+
+def get_model_ultralytics(
+    config: DictConfig, extra_args: dict
+) -> Tuple[ModuleType, YoloV5BackboneConfig]:
+    import icevision.models.ultralytics.yolov5 as tv
+
+    backbone = tv.backbones.small
+    # The yolov5 model requires an img_size parameter
+    extra_args["img_size"] = config.dataset_config.img_size
+    return tv, backbone
+
+
+def get_model(config: DictConfig, pretrained=True) -> Tuple[nn.Module, ModuleType]:
 
     model_config: DictConfig = config.model_config
     extra_args = {}
 
     if model_config.framework == "mmdet":
-        model_type = models.mmdet.retinanet
-        backbone = model_type.backbones.resnet50_fpn_1x
-
+        model_module, backbone = get_model_mmdet(config, extra_args)
     elif model_config.framework == "torchvision":
-        model_type, backbone = get_model_torchvision(config, extra_args)
-
+        model_module, backbone = get_model_torchvision(config, extra_args)
     elif model_config.framework == "ross":
-        model_type = models.ross.efficientdet
-        backbone = model_type.backbones.tf_lite0
-        # The efficientdet model requires an img_size parameter
-        extra_args["img_size"] = config.datataset_config.img_size
-
+        model_module, backbone = get_model_ross(config, extra_args)
     elif model_config.framework == "ultralytics":
-        model_type = models.ultralytics.yolov5
-        backbone = model_type.backbones.small
-        # The yolov5 model requires an img_size parameter
-        extra_args["img_size"] = image_size
+        model_module, backbone = get_model_ross(config, extra_args)
     else:
         raise NotImplementedError()
 
-    model = model_type.model(
-        backbone=backbone(pretrained=pretrained), num_classes=len(parser.class_map), **extra_args
+    model: nn.Module = model_module.model(
+        backbone=backbone(pretrained=pretrained),
+        num_classes=config.dataset_config.num_classes,
+        **extra_args,
     )
-    # print(model)
     for obj in [backbone, model, model.backbone]:
         if hasattr(obj, "param_groups"):
             delattr(obj, "param_groups")
-    return model, model_type
+    return model, model_module

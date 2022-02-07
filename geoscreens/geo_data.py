@@ -1,4 +1,5 @@
 from pathlib import Path
+from types import ModuleType
 from typing import Union
 
 from icevision import tfms
@@ -8,23 +9,22 @@ from icevision.parsers.coco_parser import COCOBBoxParser
 from omegaconf import DictConfig, ListConfig
 from pytorch_lightning import LightningDataModule
 
-from geoscreens.consts import PROJECT_ROOT
-
 
 class GeoScreensDataModule(LightningDataModule):
-    def __init__(
-        self,
-        config: Union[DictConfig, ListConfig],
-    ):
+    def __init__(self, config: Union[DictConfig, ListConfig], model_type: ModuleType):
         super().__init__()
-        self.config = config = config.dataset_config
-        print(self.config)
-        self.cache_path = Path(config.data_root) / config.dataset_name / "dataset_cache.pkl"
+        self.dataset_config = dataset_config = config.dataset_config
+        print(self.dataset_config)
+        self.cache_path = (
+            Path(dataset_config.data_root) / dataset_config.dataset_name / "dataset_cache.pkl"
+        )
         self.parser = COCOBBoxParser(
             annotations_filepath=(
-                Path(config.data_root) / config.dataset_name / f"{config.dataset_name}.json"
+                Path(dataset_config.data_root)
+                / dataset_config.dataset_name
+                / f"{dataset_config.dataset_name}.json"
             ).resolve(),
-            img_dir=config.img_dir,
+            img_dir=dataset_config.img_dir,
         )
         self.train_records, self.valid_records = self.parser.parse(
             data_splitter=RandomSplitter([0.7, 0.3], seed=233), cache_filepath=self.cache_path
@@ -35,18 +35,25 @@ class GeoScreensDataModule(LightningDataModule):
         # Transforms
         # size is set to 384 because EfficientDet requires its inputs to be divisible by 128
         # train_tfms = tfms.A.Adapter(
-        #     [*tfms.A.aug_tfms(size=IMG_SIZE, presize=int(IMG_SIZE * 1.25)), tfms.A.Normalize()]
+        #     [
+        #         *tfms.A.aug_tfms(
+        #             size=dataset_config.img_size, presize=int(dataset_config.img_size * 1.25)
+        #         ),
+        #         tfms.A.Normalize(),
+        #     ]
         # )
-        train_tfms = tfms.A.Adapter([*tfms.A.resize_and_pad(config.img_size), tfms.A.Normalize()])
-        valid_tfms = tfms.A.Adapter([*tfms.A.resize_and_pad(config.img_size), tfms.A.Normalize()])
+        train_tfms = tfms.A.Adapter(
+            [*tfms.A.resize_and_pad(dataset_config.img_size), tfms.A.Normalize()]
+        )
+        valid_tfms = tfms.A.Adapter(
+            [*tfms.A.resize_and_pad(dataset_config.img_size), tfms.A.Normalize()]
+        )
 
         # Datasets
         self.train_ds = Dataset(self.train_records, train_tfms)
         self.valid_ds = Dataset(self.valid_records, valid_tfms)
-        print("train_ds: ", len(self.train_ds))
-        print("valid_ds: ", len(self.valid_ds))
-
-    def set_model_type(self, model_type):
+        print("train_ds num_batches: ", len(self.train_ds))
+        print("valid_ds num_batches: ", len(self.valid_ds))
         self.ModelType = model_type
 
     def train_dataloader(self):
@@ -54,35 +61,35 @@ class GeoScreensDataModule(LightningDataModule):
         # a pytorch DataLoader:
         return self.ModelType.train_dl(
             self.train_ds,
-            batch_size=self.config.batch_size,
-            num_workers=self.config.num_workers,
+            batch_size=self.dataset_config.batch_size,
+            num_workers=self.dataset_config.num_workers,
             shuffle=True,
-            pin_memory=self.config.pin_memory,
+            pin_memory=self.dataset_config.pin_memory,
         )
 
     def val_dataloader(self):
         return self.ModelType.valid_dl(
             self.valid_ds,
-            batch_size=self.config.batch_size,
-            num_workers=self.config.num_workers,
+            batch_size=self.dataset_config.batch_size,
+            num_workers=self.dataset_config.num_workers,
             shuffle=False,
-            pin_memory=self.config.pin_memory,
+            pin_memory=self.dataset_config.pin_memory,
         )
 
     def test_dataloader(self):
         return self.ModelType.valid_dl(
             self.valid_ds,
-            batch_size=self.config.batch_size,
-            num_workers=self.config.num_workers,
+            batch_size=self.dataset_config.batch_size,
+            num_workers=self.dataset_config.num_workers,
             shuffle=False,
-            pin_memory=self.config.pin_memory,
+            pin_memory=self.dataset_config.pin_memory,
         )
 
     def predict_dataloader(self):
         return self.ModelType.valid_dl(
             self.valid_ds,
-            batch_size=self.config.batch_size,
-            num_workers=self.config.num_workers,
+            batch_size=self.dataset_config.batch_size,
+            num_workers=self.dataset_config.num_workers,
             shuffle=False,
-            pin_memory=self.config.pin_memory,
+            pin_memory=self.dataset_config.pin_memory,
         )
