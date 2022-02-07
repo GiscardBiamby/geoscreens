@@ -1,23 +1,17 @@
 from pathlib import Path
 from typing import List, Union
+
 import torch.nn as nn
-from icevision import models, tfms
 from icevision.data import Dataset
 from icevision.metrics import COCOMetric, COCOMetricType, Metric
 from icevision.models.ross.efficientdet.lightning.model_adapter import ModelAdapter as EffDetAdapter
 from icevision.models.torchvision.retinanet.lightning.model_adapter import (
     ModelAdapter as TorchRetinaNetAdapter,
 )
-from icevision.parsers.coco_parser import COCOBBoxParser
-from pytorch_lightning import LightningDataModule, Trainer, seed_everything
-from pytorch_lightning.loggers import WandbLogger
-from pytorch_lightning.plugins import DDPPlugin
-from pytorch_lightning.utilities.cli import LightningCLI
+from omegaconf import DictConfig
 from torch.optim import SGD, Adam
 from torch.optim.lr_scheduler import MultiStepLR, ReduceLROnPlateau
 
-from geoscreens.consts import GEO_SCREENS, IMG_SIZE
-from geoscreens.geo_data import GeoScreensDataModule
 
 
 class LightModelEffdet(EffDetAdapter):
@@ -57,23 +51,8 @@ class LightModelEffdet(EffDetAdapter):
         }
 
     def forward(self, *args, **kwargs):
-        # print("")
-        # print("=" * 40)
-        # print("args: ", type(args), ", len: ", len(args))
-        # for i, a in enumerate(args):
-        #     print(f"  args[{i}]: {type(a)}")
-        #     if hasattr(a, "__len__"):
-        #         print(f"  len(args[{i}]): {len(a)}, {type(a[0])}")
-
         if isinstance(args, tuple) and len(args) == 2 and isinstance(args[0], tuple):
-            # print("  Weird fix")
             args = args[0][0]
-            # print("  args AFTER FIX: ")
-            # print("  args: ", type(args), ", len: ", len(args))
-            # for i, a in enumerate(args):
-            #     print(f"    args[{i}]: {type(a)}")
-            #     if hasattr(a, "__len__"):
-            #         print(f"    len(args[{i}]): {len(a)}, {type(a[0])}")
         return self.model(*args, **kwargs)
 
     def training_step(self, batch, batch_idx):
@@ -94,14 +73,16 @@ class LightModelTorch(TorchRetinaNetAdapter):
     def __init__(
         self,
         model: nn.Module,
+        config: DictConfig,
         metrics: List[Metric] = None,
-        learning_rate: float = 1e-4,
-        batch_size: int = 8,
+        # learning_rate: float = 1e-4,
+        # batch_size: int = 8,
     ):
         super().__init__(model, metrics=metrics)
-        self.learning_rate = learning_rate
-        print("learning_rate: ", learning_rate)
-        self.save_hyperparameters()
+        self.config = config
+        self.learning_rate = config.training.learning_rate
+        print("learning_rate: ", self.learning_rate)
+        self.save_hyperparameters(self.config.training)
 
     def configure_optimizers(self):
         optimizer = Adam(self.parameters(), lr=self.hparams.learning_rate)
@@ -133,23 +114,8 @@ class LightModelTorch(TorchRetinaNetAdapter):
         }
 
     def forward(self, *args, **kwargs):
-        # print("")
-        # print("=" * 40)
-        # print("args: ", type(args), ", len: ", len(args))
-        # for i, a in enumerate(args):
-        #     print(f"  args[{i}]: {type(a)}")
-        #     if hasattr(a, "__len__"):
-        #         print(f"  len(args[{i}]): {len(a)}, {type(a[0])}")
-
         if isinstance(args, tuple) and len(args) == 2 and isinstance(args[0], tuple):
-            # print("  Weird fix")
             args = args[0][0]
-            # print("  args AFTER FIX: ")
-            # print("  args: ", type(args), ", len: ", len(args))
-            # for i, a in enumerate(args):
-            #     print(f"    args[{i}]: {type(a)}")
-            #     if hasattr(a, "__len__"):
-            #         print(f"    len(args[{i}]): {len(a)}, {type(a[0])}")
         return self.model(*args, **kwargs)
 
     def training_step(self, batch, batch_idx):
@@ -166,10 +132,10 @@ class LightModelTorch(TorchRetinaNetAdapter):
         return result
 
 
-def build_module(model_type: str, model, **kwargs):
+def build_module(model_type: str, model, config: DictConfig, **kwargs):
     if model_type == "efficientdet":
         return LightModelEffdet(model, **kwargs)
     elif model_type == "torchvision":
-        return LightModelTorch(model, **kwargs)
+        return LightModelTorch(model, config, **kwargs)
     else:
         raise NotImplementedError()

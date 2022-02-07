@@ -1,8 +1,11 @@
-from argparse import ArgumentParser
+import sys
+from argparse import ArgumentParser, Namespace
 from pathlib import Path
+from typing import Union
 
 import wandb
 from icevision.metrics import COCOMetric, COCOMetricType, Metric
+from omegaconf import DictConfig, ListConfig, OmegaConf
 from pytorch_lightning import LightningDataModule, Trainer, seed_everything
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 from pytorch_lightning.loggers import WandbLogger
@@ -14,9 +17,24 @@ from geoscreens.models import get_model
 from geoscreens.modules import LightModelTorch, build_module
 
 
-def main(args):
-    seed_everything(42, workers=True)
-    geo_screens = GeoScreensDataModule(num_workers=args.num_workers, batch_size=args.batch_size)
+def build_config(args: Namespace) -> Union[DictConfig, ListConfig]:
+    base_config = OmegaConf.load(PROJECT_ROOT / "configs/default.yaml")
+    config = OmegaConf.load(args.config_file)
+    cli_conf = OmegaConf.from_cli(args.overrides)
+    config = OmegaConf.merge(base_config, config, cli_conf)
+    print(OmegaConf.to_yaml(config))
+    # Resolve the config here itself after full creation so that spawned workers don't face any
+    # issues
+    config = OmegaConf.create(OmegaConf.to_container(config, resolve=True))
+    # sys.exit()
+    return config
+
+
+def train_geo(args: Namespace) -> None:
+    config = build_config(args)
+    seed_everything(config.seed, workers=True)
+    print("CONFIG: ", *config.training)
+    geo_screens = GeoScreensDataModule(config)
     # model_name = "efficientdet"
     model_name = "torchvision"
     metrics = [COCOMetric(metric_type=COCOMetricType.bbox, show_pbar=True)]
@@ -34,8 +52,7 @@ def main(args):
     #     suggested_lr = light_model.hparams.learning_rate
 
     print("creating model")
-    suggested_lr = args.lr
-    exp_id = f"gs005_model_{model_name}-lr_{suggested_lr}-ratios_0.08_to_2.0-sizes_32_to_512-detsperimg_512"
+    exp_id = f"gs005_model_{model_name}-lr_{config.training.learning_rate}-ratios_0.08_to_2.0-sizes_32_to_512-detsperimg_512"
     save_dir = Path(f"./output/{exp_id}").resolve()
     save_dir.mkdir(exist_ok=True, parents=True)
     checkpoint_callback = ModelCheckpoint(
@@ -46,23 +63,19 @@ def main(args):
     )
     model, model_type = get_model(geo_screens.parser, backend_type=model_name)
     geo_screens.set_model_type(model_type)
-    light_model = build_module(model_name, model, metrics=metrics, learning_rate=suggested_lr)
+    light_model = build_module(model_name, model, config, metrics=metrics)
     wandb_logger = WandbLogger(project=GEO_SCREENS, log_model=True, name=exp_id)
     wandb_logger.watch(light_model)
     steps_per_batch = len(geo_screens.train_dataloader())
     trainer = Trainer(
-        max_epochs=80,
-        gpus=[1],
         strategy=DDPPlugin(find_unused_parameters=False),
-        precision=16,
-        amp_backend="native",
         logger=wandb_logger,
-        check_val_every_n_epoch=5,
         callbacks=[
             checkpoint_callback,
             LearningRateMonitor(logging_interval="step"),
         ],
         log_every_n_steps=min(steps_per_batch // 4, 50),
+        **config.training.params,
     )
 
     print("training")
@@ -75,11 +88,16 @@ def main(args):
 
 if __name__ == "__main__":
     parser = ArgumentParser()
-    parser.add_argument("--lr", type=float, default=1e-4)
-    parser.add_argument("--num_workers", type=int, default=0)
-    parser.add_argument("--batch_size", type=int, default=12)
-    # parser.add_argument("--img_dir", type=Path, default=Path("/shared/gbiamby/geo/screenshots/screen_samples_auto"))
-    parser.add_argument("--img_dir", type=Path, default=(PROJECT_ROOT / "datasets/images"))
-    # parser.add_argument()
+    parser.add_argument(
+        "--config_file",
+        type=Path,
+        default=(PROJECT_ROOT / "configs" / "torchvision.retinanet.yaml"),
+    )
+    parser.add_argument(
+        "overrides",
+        nargs="*",
+        help="Any key=svalue arguments to override config values "
+        "(use dots for.nested=overrides)",
+    )
     args = parser.parse_args()
-    main(args)
+    train_geo(args)

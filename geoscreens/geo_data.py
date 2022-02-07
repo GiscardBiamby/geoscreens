@@ -1,8 +1,11 @@
 from pathlib import Path
+from typing import Union
+
 from icevision import tfms
 from icevision.data import Dataset, DataSplitter, RandomSplitter
 from icevision.parsers import Parser
 from icevision.parsers.coco_parser import COCOBBoxParser
+from omegaconf import DictConfig, ListConfig
 from pytorch_lightning import LightningDataModule
 
 from geoscreens.consts import GEO_SCREENS, IMG_SIZE, PROJECT_ROOT
@@ -11,19 +14,19 @@ from geoscreens.consts import GEO_SCREENS, IMG_SIZE, PROJECT_ROOT
 class GeoScreensDataModule(LightningDataModule):
     def __init__(
         self,
-        batch_size: int = 12,
-        num_workers: int = 0,
-        img_dir: Path = (PROJECT_ROOT / "datasets/images"),
+        config: Union[DictConfig, ListConfig],
     ):
         super().__init__()
-        self.batch_size = batch_size
-        self.num_workers = num_workers
+        self.config = config = config.dataset
+        print(self.config)
+        # self.batch_size = config.batch_size
+        # self.num_workers = config.num_workers
         self.cache_path = PROJECT_ROOT / "datasets" / GEO_SCREENS / "dataset_cache.pkl"
         self.parser = COCOBBoxParser(
             annotations_filepath=(
                 PROJECT_ROOT / "datasets" / f"{GEO_SCREENS}/{GEO_SCREENS}.json"
             ).resolve(),
-            img_dir=img_dir.resolve(),
+            img_dir=(PROJECT_ROOT / config.img_dir).resolve(),
         )
         self.train_records, self.valid_records = self.parser.parse(
             data_splitter=RandomSplitter([0.7, 0.3], seed=233), cache_filepath=self.cache_path
@@ -50,20 +53,32 @@ class GeoScreensDataModule(LightningDataModule):
 
     def train_dataloader(self):
         return self.ModelType.train_dl(
-            self.train_ds, batch_size=self.batch_size, num_workers=self.num_workers, shuffle=True
+            self.train_ds,
+            batch_size=self.config.batch_size,
+            num_workers=self.config.num_workers,
+            shuffle=True,
         )
 
     def val_dataloader(self):
         return self.ModelType.valid_dl(
-            self.valid_ds, batch_size=self.batch_size, num_workers=self.num_workers, shuffle=False
+            self.valid_ds,
+            batch_size=self.config.batch_size,
+            num_workers=self.config.num_workers,
+            shuffle=False,
         )
 
     def test_dataloader(self):
         return self.ModelType.valid_dl(
-            self.valid_ds, batch_size=self.batch_size, num_workers=self.num_workers, shuffle=False
+            self.valid_ds,
+            batch_size=self.config.batch_size,
+            num_workers=self.config.num_workers,
+            shuffle=False,
         )
 
     def predict_dataloader(self):
         return self.ModelType.valid_dl(
-            self.valid_ds, batch_size=self.batch_size, num_workers=self.num_workers, shuffle=False
+            self.valid_ds,
+            batch_size=self.config.batch_size,
+            num_workers=self.config.num_workers,
+            shuffle=False,
         )

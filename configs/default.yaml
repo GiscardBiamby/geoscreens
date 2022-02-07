@@ -1,0 +1,18 @@
+seed: 42
+gpus: [1]
+
+dataset:
+  img_dir: "datasets/images"
+  batch_size: 12
+  num_workers: 0
+
+training:
+  batch_size: 12
+  num_workers: 4
+  learning_rate: 1e-4
+  params:
+    max_epochs: 80
+    gpus: [1]
+    precision: 16
+    amp_backend: "native"
+    check_val_every_n_epoch: 5

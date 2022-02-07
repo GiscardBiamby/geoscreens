@@ -2,8 +2,11 @@
 
 # If you don't use anaconda or miniconda you can replace the relevant environment creation and
 # activation lines with pyenv or whatever system you use to manage python environments.
+
+# shellcheck source=/home/gbiamby/anaconda3/etc/profile.d/conda.sh
 source ~/anaconda3/etc/profile.d/conda.sh
-source ../manifest
+# shellcheck source=../manifest
+source "../manifest"
 
 ENV_NAME=$PYTHON_ENV_NAME
 echo "ENV_NAME: ${ENV_NAME}"
@@ -38,21 +41,21 @@ pip install mmdet -c ../constraints.txt
 # pip install icevision[all]
 
 # Install external library code:
-pushd ../lib/
+pushd ../lib/ || return
 
 # Install icevision (https://github.com/airctic/icevision):
 git clone git@github.com:GiscardBiamby/icevision.git
-pushd icevision
+pushd icevision || return
 pip install -e .[all,dev] -c ../../constraints.txt
-popd
+popd || return
 
 # Install customized version of pycocotools (https://github.com/GiscardBiamby/cocobetter):
 git clone git@github.com:GiscardBiamby/cocobetter.git
-pushd ./cocobetter/PythonAPI
+pushd ./cocobetter/PythonAPI || return
 pip install -e . -c ../../../constraints.txt
-popd
+popd || return
 
-popd
+popd || return
 
 # We are done, show the python environment:
 conda list
