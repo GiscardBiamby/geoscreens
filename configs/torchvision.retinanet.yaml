@@ -1,0 +1,15 @@
+model_config:
+  # Options: torchvision, mmdet, ross, ultralytics
+  framework: "torchvision"
+  name: "retinanet"
+  # backbone: "resnet_50_fpn"
+  params:
+    detections_per_img: 512
+    # Anchor box sizes. Default:  [32, 64, 128, 256, 512]
+    anchor_sizes: [32, 64, 128, 256, 512]
+    # Anchor box aspect ratios (h/w). Default: [0.5, 1.0, 2.0]
+    aspect_ratios: [0.08, 0.16, 0.25, 0.36, 0.5, 0.7, 1.0, 2.0]
+    score_thresh: 0.05
+    nms_thresh: 0.5
+    fg_iou_thresh: 0.5
+    bg_iou_thresh: 0.4

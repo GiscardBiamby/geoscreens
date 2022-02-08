@@ -1,5 +1,4 @@
 project_name: "geoscreens"
-exp_id: null
 seed: 42
 gpus: [1]
 
@@ -9,7 +8,7 @@ env:
   data_dir: ${resolve_dir:ICEDET_DATA_DIR, datasets}
 
   # Directory for saving checkpoints and other metadata Use ICEDET_SAVE_DIR or env.save_dir to
-  # override. This will get the exp_id appended as a subdirectory automatically.
+  # override. This will get the experiment_name appended as a subdirectory automatically.
   save_dir: ${env:ICEDET_SAVE_DIR, ./output}
 
   # Log directory for Weights and Biases, default points to same as logs Only used when
@@ -57,7 +56,6 @@ training:
   num_workers: 4
   # Whether to pin memory in dataloader
   pin_memory: false
-
   # After `checkpoint_interval` number of updates, MMF will make a snapshot which will involve
   # creating a checkpoint for current training scenarios
   checkpoint_interval: 1000
@@ -67,24 +65,33 @@ training:
 
   # These are passed to the constructor for the Lightning Trainer
   params:
-    max_epochs: 1
+    max_epochs: 80
     gpus: [1]
     precision: 16
     amp_backend: "native"
     check_val_every_n_epoch: 5
+    # Enable anomaly detection for the autograd engine. i.e., terminate on NaN/Inf loss.
+    detect_anomaly: true
+    # If ``True``, sets whether PyTorch operations must use deterministic algorithms. Default:
+    # ``False``.
+    deterministic: False
+    # Enables cudnn.benchmark
+    benchmark: True
 
   early_stop:
     # Whether to use early stopping, (Default: false)
     enabled: false
-    # Patience for early stoppings
-    patience: 4000
-    # Criteria to be monitored for early stopping total_loss will monitor combined loss from all of
-    # the tasks Criteria can also be an evaluation metric in this format `dataset/metric` for e.g.
-    # vqa2/vqa_accuracy
-    criteria: total_loss
-    # Whether the monitored criteria should be minimized for early stopping or not, for e.g. you
-    # would want to minimize loss but maximize an evaluation metric like accuracy etc.
-    minimize: true
+    params:
+      # Patience for early stoppings
+      patience: 4
+      # Criteria to be monitored for early stopping total_loss will monitor combined loss from all of
+      # the tasks Criteria can also be an evaluation metric in this format `dataset/metric` for e.g.
+      # vqa2/vqa_accuracy
+      monitor: "train/loss"
+      # Whether the monitored criteria should be minimized for early stopping or not, for e.g. you
+      # would want to minimize loss but maximize an evaluation metric like accuracy etc.
+      mode: "min"
+      min_delta: 0.0
 
   # Weights and Biases control, by default Weights and Biases (wandb) is disabled
   wandb:

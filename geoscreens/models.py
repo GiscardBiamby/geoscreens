@@ -1,8 +1,14 @@
 from types import ModuleType
-from typing import Any, Tuple
+from typing import Any, Tuple, cast
 
 import torch.nn as nn
 from icevision.backbones import BackboneConfig
+from icevision.models.mmdet.models.faster_rcnn.backbones.resnet_fpn import (
+    MMDetFasterRCNNBackboneConfig,
+)
+from icevision.models.mmdet.models.retinanet.backbones.backbone_config import (
+    MMDetRetinanetBackboneConfig,
+)
 from icevision.models.mmdet.utils import MMDetBackboneConfig
 from icevision.models.ross.efficientdet.utils import EfficientDetBackboneConfig
 from icevision.models.torchvision.backbones.backbone_config import TorchvisionBackboneConfig
@@ -38,15 +44,24 @@ def get_model_torchvision(
 
 
 def get_model_mmdet(config: DictConfig, extra_args: dict) -> Tuple[ModuleType, MMDetBackboneConfig]:
-    import icevision.models.mmdet as mmdet
+    import icevision.models.mmdet as ice_mmdet
 
     model_config: DictConfig = config.model_config
-    if model_config.name.lower() == "retinanet":
-        backbone = mmdet.retinanet.backbones.resnet50_fpn_1x
-        return mmdet.retinanet, backbone
+    if model_config.name.lower() == "faster_rcnn":
+        backbone = cast(
+            MMDetFasterRCNNBackboneConfig,
+            getattr(ice_mmdet.faster_rcnn.backbones, model_config.backbone),
+        )
+        return ice_mmdet.faster_rcnn, backbone
+    elif model_config.name.lower() == "retinanet":
+        backbone = cast(
+            MMDetRetinanetBackboneConfig,
+            getattr(ice_mmdet.retinanet.backbones, model_config.backbone),
+        )
+        return ice_mmdet.retinanet, backbone
     elif model_config.name.lower() == "vfnet":
-        backbone = mmdet.vfnet.backbones.swin_t_p4_w7_fpn_1x_coco
-        return mmdet.retinanet, backbone
+        backbone = ice_mmdet.vfnet.backbones.swin_t_p4_w7_fpn_1x_coco
+        return ice_mmdet.retinanet, backbone
     raise NotImplementedError(f"Unsupported model: {model_config.name}")
 
 

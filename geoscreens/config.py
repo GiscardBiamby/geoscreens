@@ -26,7 +26,7 @@ def resolve_dir(env_variable, default="data"):
     return str(dir_path)
 
 
-def _resolve_path(config: DictConfig, key: str, default=None):
+def _resolve_path(config: Union[dict, DictConfig], key: str, default=None):
     if hasattr(config, "get"):
         path = Path(config.get(key, default))
     else:
@@ -44,31 +44,23 @@ def build_config(args: Namespace) -> DictConfig:
     cli_conf = OmegaConf.from_cli(args.overrides)
     config = cast(DictConfig, OmegaConf.merge(base_config, config, cli_conf))
     config.config_file = config_path
-    # data_root = Path(config.dataset_config.data_root)
-    # if not data_root.is_absolute():
-    #     data_root = PROJECT_ROOT / data_root
-    # config.dataset_config.data_root = str(data_root.resolve())
-
     _resolve_path(config.dataset_config, "data_root", "./datasets")
     _resolve_path(config.dataset_config, "img_dir", "./datasets/images")
 
-    # img_dir = Path(config.dataset_config.get("img_dir", "./datasets/images"))
-    # if not img_dir.is_absolute():
-    #     img_dir = PROJECT_ROOT / img_dir
-    # config.dataset_config.img_dir = str(img_dir.resolve())
-
-    # TODO: Fix this to not have anything hardcoded:
-    exp_id = (
-        f"{config.dataset_config.dataset_name}-model_{config.model_config.name}-"
-        f"lr_{config.optimizer.params.lr}-"
-        f"ratios_0.08_to_2.0-sizes_32_to_512-detsperimg_512"
+    exp_name = "-".join(
+        [
+            f"{config.dataset_config.dataset_name}",
+            f"model_{config.model_config.name}",
+            f"bb_{config.model_config.backbone}",
+            f"lr_{config.optimizer.params.lr}",
+        ]
     )
-    config.exp_id = exp_id
+    config.training.experiment_name = config.training.wand = exp_name
 
     # TODO: Add logit to reuse an existing folder if we are resuming training.
     # TODO: If inference only, don't create a new folder, use existing one.
     version_cnt = 0
-    save_dir_base = Path(f"{config.env.save_dir}/{exp_id}").resolve()
+    save_dir_base = Path(f"{config.env.save_dir}/{exp_name}").resolve()
     save_dir = save_dir_base / str(version_cnt)
     while save_dir.exists():
         save_dir = save_dir_base / str(version_cnt)

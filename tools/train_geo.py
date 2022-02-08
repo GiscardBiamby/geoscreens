@@ -7,7 +7,7 @@ import wandb
 from icevision.metrics import COCOMetric, COCOMetricType, Metric
 from omegaconf import DictConfig, ListConfig, OmegaConf
 from pytorch_lightning import LightningDataModule, Trainer, seed_everything
-from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
+from pytorch_lightning.callbacks import EarlyStopping, LearningRateMonitor, ModelCheckpoint
 from pytorch_lightning.callbacks.base import Callback
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.loggers.base import DummyLogger, LoggerCollection
@@ -37,11 +37,11 @@ def param_search(config, geo_screens, model_name, metrics):
 
 
 def monitor_criteria(config: DictConfig):
-    monitor_criteria = config.training.early_stop.get("criteria", None)
+    monitor_criteria = config.training.early_stop.params.get("monitor", None)
     assert monitor_criteria, "monitor criteria is required when early stop is specified."
-    if "val" not in monitor_criteria:
-        monitor_criteria = f"val/{monitor_criteria}"
-    mode = "min" if config.training.early_stop.get("minimize", False) else "max"
+    # if "val" not in monitor_criteria:
+    #     monitor_criteria = f"val/{monitor_criteria}"
+    mode = config.training.early_stop.params.get("mode", "min")
     return monitor_criteria, mode
 
 
@@ -59,8 +59,12 @@ def configure_monitor_callbacks(config: DictConfig) -> List[ModelCheckpoint]:
     return [monitor_callback]
 
 
-def configure_earlystop_callback(config: DictConfig) -> List[ModelCheckpoint]:
-    return []
+def configure_earlystop_callback(config: DictConfig) -> List[EarlyStopping]:
+    es_config = config.training.early_stop
+    if es_config.enabled:
+        return [EarlyStopping(**es_config.params)]
+    else:
+        return []
 
 
 def configure_checkpoint_callbacks(config: DictConfig) -> List[ModelCheckpoint]:
@@ -82,7 +86,8 @@ def configure_callbacks(config: DictConfig) -> List[Callback]:
     callbacks += configure_checkpoint_callbacks(config)
     if config.training.get("early_stop", None) and config.training.early_stop.get("enabled", False):
         callbacks += configure_monitor_callbacks(config)
-        callbacks += configure_earlystop_callback(config)
+        callbacks += []
+    callbacks += configure_earlystop_callback(config)
     callbacks.append(LearningRateMonitor(logging_interval="step"))
     return callbacks
 

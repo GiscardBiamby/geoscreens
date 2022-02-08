@@ -1,26 +1,36 @@
 model_config:
   # Options: torchvision, mmdet, ross, ultralytics
-  framework: "ross"
-  # https://arxiv.org/pdf/1911.09070.pdf
-  name: "efficientdet"
-  # backbone options.
-  #
-  # Note, only some of these models have pretrained weights available. Mostly the tf_ ones have
-  # weights. See: https://github.com/rwightman/efficientdet-pytorch/releases/tag/v0.1
-  #
-  # efficientdet_d0 , efficientdet_d1 , efficientdet_d2 , efficientdet_d3 , efficientdet_d4 ,
-  # efficientdet_d5 , efficientdet_d6 , efficientdet_d7 , efficientdet_d7x,
-  #
-  # tf_efficientdet_lite0, tf_efficientdet_lite1, tf_efficientdet_lite2, tf_efficientdet_lite3
-  #
-  # $tf_efficientdet_d0 , tf_efficientdet_d1 , tf_efficientdet_d2 , tf_efficientdet_d3 ,
-  # tf_efficientdet_d4 , tf_efficientdet_d5 , tf_efficientdet_d6 , tf_efficientdet_d7 ,
-  # tf_efficientdet_d7x
-  backbone: "tf_efficientdet_d4"
+  framework: "mmdet"
+  name: "retinanet"
+  backbone: "resnext101_32x4d_fpn_2x"
+  # params:
+  #   detections_per_img: 512
+  #   # Anchor box sizes. Default:  [32, 64, 128, 256, 512]
+  #   anchor_sizes: [32, 64, 128, 256, 512]
+  #   # Anchor box aspect ratios (h/w). Default: [0.5, 1.0, 2.0]
+  #   aspect_ratios: [0.08, 0.16, 0.25, 0.36, 0.5, 0.7, 1.0, 2.0]
+  #   score_thresh: 0.05
+  #   nms_thresh: 0.5
+  #   fg_iou_thresh: 0.5
+  #   bg_iou_thresh: 0.4
 
 training:
   # Name of the experiment, will be used while saving checkpoints and generating reports
   experiment_name: run
+  # Size of the batch globally. If distributed or data_parallel is used, this will be divided
+  # equally among GPUs
+  batch_size: 12
+  # Number of workers to be used in dataloaders
+  num_workers: 4
+  # Whether to pin memory in dataloader
+  pin_memory: false
+  # After `checkpoint_interval` number of updates, MMF will make a snapshot which will involve
+  # creating a checkpoint for current training scenarios
+  checkpoint_interval: 1000
+  # This will evaluate evaluation metrics on whole validation set after evaluation interval number
+  # of updates
+  evaluation_interval: 1000
+
   # These are passed to the constructor for the Lightning Trainer
   params:
     max_epochs: 80
@@ -31,7 +41,7 @@ training:
 
   early_stop:
     # Whether to use early stopping, (Default: false)
-    enabled: false
+    enabled: true
     params:
       # Patience for early stoppings
       patience: 4
@@ -44,13 +54,10 @@ training:
       mode: "min"
       min_delta: 0.0
 
-dataset_config:
-  img_size: 512
-
 optimizer:
   type: "adam"
   params:
-    lr: 1e-4
+    lr: 1e-6
     # betas: null
     # eps: 1e-8
     # weight_decay: 0
