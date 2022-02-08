@@ -1,3 +1,6 @@
+seed: 42
+gpus: 2
+
 model_config:
   # Options: torchvision, mmdet, ross, ultralytics
   framework: "mmdet"

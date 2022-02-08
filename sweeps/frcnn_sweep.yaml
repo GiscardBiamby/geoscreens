@@ -37,19 +37,21 @@ early_terminate:
 # Create the sweep:
 #   wandb sweep ../sweeps/frcnn_sweep.yaml
 #
+# Run the sweeps (Method 1):
 # Run sweeps on multiple gpus in parallel (2 gpu's per sweep agent in this example):
-# CUDA_VISIBLE_DEVICES=0,1 wandb agent gbiamby/geoscreens_sweep/7pffzziv
-# CUDA_VISIBLE_DEVICES=2,3 wandb agent gbiamby/geoscreens_sweep/7pffzziv
-# CUDA_VISIBLE_DEVICES=4,5 wandb agent gbiamby/geoscreens_sweep/7pffzziv
-# CUDA_VISIBLE_DEVICES=6.7 wandb agent gbiamby/geoscreens_sweep/7pffzziv
-# CUDA_VISIBLE_DEVICES=8,9 wandb agent gbiamby/geoscreens_sweep/7pffzziv
+# CUDA_VISIBLE_DEVICES=0,1 wandb agent gbiamby/geoscreens_sweep/SWEEP_ID
+# CUDA_VISIBLE_DEVICES=2,3 wandb agent gbiamby/geoscreens_sweep/SWEEP_ID
+# CUDA_VISIBLE_DEVICES=4,5 wandb agent gbiamby/geoscreens_sweep/SWEEP_ID
+# CUDA_VISIBLE_DEVICES=6,7 wandb agent gbiamby/geoscreens_sweep/SWEEP_ID
+# CUDA_VISIBLE_DEVICES=8,9 wandb agent gbiamby/geoscreens_sweep/SWEEP_ID
 #
+# Run the sweeps (Method 2):
 # Alternatively, run these exports (each in a separate terminal):
-# export CUDA_VISIBLE_DEVICES=0,1
-# export CUDA_VISIBLE_DEVICES=2,3
-# export CUDA_VISIBLE_DEVICES=4,5
-# export CUDA_VISIBLE_DEVICES=6.7
-# export CUDA_VISIBLE_DEVICES=8,9
+# export CUDA_VISIBLE_DEVICES="0,1"
+# export CUDA_VISIBLE_DEVICES="2,3"
+# export CUDA_VISIBLE_DEVICES="4,5"
+# export CUDA_VISIBLE_DEVICES="6,7"
+# export CUDA_VISIBLE_DEVICES="8,9"
 #
 # And then run this in each terminal:
-# wandb agent gbiamby/geoscreens_sweep/1gm2say9
+# wandb agent gbiamby/geoscreens_sweep/mlxemf4x
