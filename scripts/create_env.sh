@@ -48,6 +48,7 @@ pushd ../lib/ || return
 # Install icevision (https://github.com/airctic/icevision):
 git clone git@github.com:GiscardBiamby/icevision.git
 pushd icevision || return
+git checkout geo
 pip install -e .[all,dev] -c ../../constraints.txt
 popd || return
 
