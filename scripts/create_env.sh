@@ -33,7 +33,9 @@ python -m ipykernel install --user --name="${ENV_NAME}"
 # Install jupyter extensions
 jupyter contrib nbextension install --user
 
-pip install -e . -c ../constraints.txt
+pushd ..
+pip install -e . -c constraints.txt
+popd
 
 # ## Object Detection Framework(s):
 pip install mmcv-full==1.4.0 -f https://download.openmmlab.com/mmcv/dist/cu113/torch1.10.0/index.html -c ../constraints.txt --upgrade
