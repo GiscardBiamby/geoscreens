@@ -69,11 +69,12 @@ ipython_config.py
 # Custom items
 *.ckpt
 *.pkl
+**/output/
 checkpoints/
+datasets/images/
 junk/
 lightning_logs/
 notebooks/cache/
 notebooks/output/
 tmp/
 wandb/
-datasets/images/

@@ -36,9 +36,9 @@ jupyter contrib nbextension install --user
 pip install -e . -c ../constraints.txt
 
 # ## Object Detection Framework(s):
-pip install mmcv-full -f https://download.openmmlab.com/mmcv/dist/cu113/1.10.1/index.html -c ../constraints.txt
-pip install mmdet -c ../constraints.txt
-# pip install icevision[all]
+pip install mmcv-full==1.4.0 -f https://download.openmmlab.com/mmcv/dist/cu113/torch1.10.0/index.html -c ../constraints.txt --upgrade
+pip install mmdet==2.16.0 -c ../constraints.txt --upgrade
+pip install yolov5-icevision --upgrade -c ../constraints.txt
 
 # Install external library code:
 pushd ../lib/ || return

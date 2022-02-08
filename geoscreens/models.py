@@ -40,8 +40,14 @@ def get_model_torchvision(
 def get_model_mmdet(config: DictConfig, extra_args: dict) -> Tuple[ModuleType, MMDetBackboneConfig]:
     import icevision.models.mmdet as mmdet
 
-    backbone = mmdet.retinanet.backbones.resnet50_fpn_1x
-    return mmdet.retinanet, backbone
+    model_config: DictConfig = config.model_config
+    if model_config.name.lower() == "retinanet":
+        backbone = mmdet.retinanet.backbones.resnet50_fpn_1x
+        return mmdet.retinanet, backbone
+    elif model_config.name.lower() == "vfnet":
+        backbone = mmdet.vfnet.backbones.swin_t_p4_w7_fpn_1x_coco
+        return mmdet.retinanet, backbone
+    raise NotImplementedError(f"Unsupported model: {model_config.name}")
 
 
 def get_model_ross(
@@ -49,7 +55,7 @@ def get_model_ross(
 ) -> Tuple[ModuleType, EfficientDetBackboneConfig]:
     import icevision.models.ross.efficientdet as tv
 
-    backbone = tv.backbones.tf_lite0
+    backbone = EfficientDetBackboneConfig(config.model_config.backbone)
     extra_args["img_size"] = config.dataset_config.img_size
     return tv, backbone
 
@@ -86,7 +92,10 @@ def get_model(config: DictConfig, pretrained=True) -> Tuple[nn.Module, ModuleTyp
         num_classes=config.dataset_config.num_classes,
         **extra_args,
     )
-    for obj in [backbone, model, model.backbone]:
+    modules = [backbone, model]
+    if hasattr(model, "backbone"):
+        modules.append(model.backbone)
+    for obj in modules:
         if hasattr(obj, "param_groups"):
             delattr(obj, "param_groups")
     return model, model_module

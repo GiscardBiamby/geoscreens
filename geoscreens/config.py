@@ -26,21 +26,36 @@ def resolve_dir(env_variable, default="data"):
     return str(dir_path)
 
 
+def _resolve_path(config: DictConfig, key: str, default=None):
+    if hasattr(config, "get"):
+        path = Path(config.get(key, default))
+    else:
+        path = Path(config[key])
+    if not path.is_absolute():
+        path = PROJECT_ROOT / path
+    config[key] = str(path.resolve())
+    return config
+
+
 def build_config(args: Namespace) -> DictConfig:
+    config_path = _resolve_path(vars(args), "config_file")["config_file"]
     base_config = OmegaConf.load(PROJECT_ROOT / "configs/default.yaml")
-    config = OmegaConf.load(args.config_file)
+    config = OmegaConf.load(config_path)
     cli_conf = OmegaConf.from_cli(args.overrides)
-    config = OmegaConf.merge(base_config, config, cli_conf)
+    config = cast(DictConfig, OmegaConf.merge(base_config, config, cli_conf))
+    config.config_file = config_path
+    # data_root = Path(config.dataset_config.data_root)
+    # if not data_root.is_absolute():
+    #     data_root = PROJECT_ROOT / data_root
+    # config.dataset_config.data_root = str(data_root.resolve())
 
-    data_root = Path(config.dataset_config.data_root)
-    if not data_root.is_absolute():
-        data_root = PROJECT_ROOT / data_root
-    config.dataset_config.data_root = str(data_root.resolve())
+    _resolve_path(config.dataset_config, "data_root", "./datasets")
+    _resolve_path(config.dataset_config, "img_dir", "./datasets/images")
 
-    img_dir = Path(config.dataset_config.get("img_dir", "./datasets/images"))
-    if not img_dir.is_absolute():
-        img_dir = PROJECT_ROOT / img_dir
-    config.dataset_config.img_dir = str(img_dir.resolve())
+    # img_dir = Path(config.dataset_config.get("img_dir", "./datasets/images"))
+    # if not img_dir.is_absolute():
+    #     img_dir = PROJECT_ROOT / img_dir
+    # config.dataset_config.img_dir = str(img_dir.resolve())
 
     # TODO: Fix this to not have anything hardcoded:
     exp_id = (
@@ -67,6 +82,8 @@ def build_config(args: Namespace) -> DictConfig:
     OmegaConf.set_struct(config, True)
     OmegaConf.set_readonly(config, True)
     print(OmegaConf.to_yaml(config))
+    with open(Path(config.env.save_dir) / "config.yaml", "w") as fp:
+        OmegaConf.save(config=config, f=fp)
     # sys.exit()
     return cast(DictConfig, config)
 

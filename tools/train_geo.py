@@ -135,6 +135,7 @@ def build_wandb_logger(config, light_model) -> Optional[WandbLogger]:
     if config.training.wandb.enabled:
         wandb_config: DictConfig = config.training.wandb.copy()
         OmegaConf.set_struct(wandb_config, False)
+        OmegaConf.set_readonly(wandb_config, False)
         wandb_config.pop("enabled")
         wandb_logger = WandbLogger(
             config=OmegaConf.to_container(config, resolve=True),

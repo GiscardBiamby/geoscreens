@@ -1,0 +1,61 @@
+model_config:
+  # Options: torchvision, mmdet, ross, ultralytics
+  framework: "ross"
+  # https://arxiv.org/pdf/1911.09070.pdf
+  name: "efficientdet"
+  # backbone options.
+  #
+  # Note, only some of these models have pretrained weights available. Mostly the tf_ ones have
+  # weights. See: https://github.com/rwightman/efficientdet-pytorch/releases/tag/v0.1
+  #
+  # efficientdet_d0 , efficientdet_d1 , efficientdet_d2 , efficientdet_d3 , efficientdet_d4 ,
+  # efficientdet_d5 , efficientdet_d6 , efficientdet_d7 , efficientdet_d7x,
+  #
+  # tf_efficientdet_lite0, tf_efficientdet_lite1, tf_efficientdet_lite2, tf_efficientdet_lite3
+  #
+  # $tf_efficientdet_d0 , tf_efficientdet_d1 , tf_efficientdet_d2 , tf_efficientdet_d3 ,
+  # tf_efficientdet_d4 , tf_efficientdet_d5 , tf_efficientdet_d6 , tf_efficientdet_d7 ,
+  # tf_efficientdet_d7x
+  backbone: "tf_efficientdet_d4"
+
+training:
+  # Name of the experiment, will be used while saving checkpoints and generating reports
+  experiment_name: ${exp_id}
+  # These are passed to the constructor for the Lightning Trainer
+  params:
+    max_epochs: 80
+    gpus: [1]
+    precision: 16
+    amp_backend: "native"
+    check_val_every_n_epoch: 5
+
+dataset_config:
+  img_size: 512
+
+scheduler:
+  type: "ReduceLROnPlateau"
+  params:
+    mode: "min"
+    factor: 0.6
+    patience: 10
+    min_lr: 1e-7
+    verbose: True
+  config:
+    # The unit of the scheduler's step size, could also be 'step'. 'epoch' updates the scheduler on
+    # epoch end whereas 'step' updates it after a optimizer update.
+    interval: "epoch"
+    # Metric to to monitor for schedulers like `ReduceLROnPlateau`
+    monitor: "train/loss"
+    # If set to `True`, will enforce that the value specified 'monitor' is available when the
+    # scheduler is updated, thus stopping training if not found. If set to `False`, it will only
+    # produce a warning
+    strict: True
+    # How many epochs/steps should pass between calls to `scheduler.step()`. 1 corresponds to
+    # updating the learning rate after every epoch/step.
+    #
+    # If "monitor" references validation metrics, then "frequency" should be set to a multiple of
+    # "trainer.check_val_every_n_epoch".
+    frequency: 1
+    # If using the `LearningRateMonitor` callback to monitor the learning rate progress, this
+    # keyword can be used to specify a custom logged name
+    name: None
