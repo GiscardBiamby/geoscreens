@@ -19,9 +19,9 @@ training:
   experiment_name: run
   # Size of the batch globally. If distributed or data_parallel is used, this will be divided
   # equally among GPUs
-  batch_size: 12
+  batch_size: 8
   # Number of workers to be used in dataloaders
-  num_workers: 4
+  num_workers: 8
   # Whether to pin memory in dataloader
   pin_memory: false
   # After `checkpoint_interval` number of updates, MMF will make a snapshot which will involve
@@ -33,8 +33,8 @@ training:
 
   # These are passed to the constructor for the Lightning Trainer
   params:
-    max_epochs: 80
-    gpus: [1]
+    max_epochs: 50
+    gpus: 2
     precision: 32
     amp_backend: "native"
     check_val_every_n_epoch: 5
@@ -57,7 +57,7 @@ training:
 optimizer:
   type: "adam"
   params:
-    lr: 1e-6
+    lr: 1e-3
     # betas: null
     # eps: 1e-8
     # weight_decay: 0

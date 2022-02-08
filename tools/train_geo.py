@@ -1,3 +1,4 @@
+import os
 import sys
 from argparse import ArgumentParser
 from pathlib import Path
@@ -18,6 +19,8 @@ from geoscreens.consts import PROJECT_ROOT
 from geoscreens.geo_data import GeoScreensDataModule
 from geoscreens.models import get_model
 from geoscreens.modules import build_module
+
+os.environ["WANDB_START_METHOD"] = "thread"
 
 
 def param_search(config, geo_screens, model_name, metrics):
@@ -97,12 +100,12 @@ def train_geo(config: DictConfig) -> None:
     metrics = [COCOMetric(metric_type=COCOMetricType.bbox, show_pbar=True)]
 
     print("creating model")
-
     model, model_type = get_model(config)
     geoscreens_data = GeoScreensDataModule(config, model_type)
     light_model = build_module(model, config, metrics=metrics)
     wandb_logger = build_wandb_logger(config, light_model)
     callbacks = configure_callbacks(config)
+    print("Create trainer")
     trainer = Trainer(
         strategy=DDPPlugin(find_unused_parameters=False),
         logger=wandb_logger or DummyLogger(),
@@ -111,6 +114,7 @@ def train_geo(config: DictConfig) -> None:
         **config.training.params,
     )
 
+    print("Starting training")
     trainer.fit(light_model, datamodule=geoscreens_data)
     checkpoint_callback = get_checkpoint_callback(callbacks)
     print("Best model: ", checkpoint_callback.best_model_path)
@@ -138,6 +142,7 @@ def get_checkpoint_callback(callbacks):
 
 def build_wandb_logger(config, light_model) -> Optional[WandbLogger]:
     if config.training.wandb.enabled:
+        print("Creating wandb logger")
         wandb_config: DictConfig = config.training.wandb.copy()
         OmegaConf.set_struct(wandb_config, False)
         OmegaConf.set_readonly(wandb_config, False)
@@ -147,6 +152,7 @@ def build_wandb_logger(config, light_model) -> Optional[WandbLogger]:
             **wandb_config,
         )
         wandb_logger.watch(light_model)
+        print("Created wandb logger")
         return wandb_logger
     return None
 

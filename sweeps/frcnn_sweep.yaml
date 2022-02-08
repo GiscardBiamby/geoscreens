@@ -1,0 +1,55 @@
+program: train_geo.py
+project: geoscreens_sweep
+command:
+  - ${env}
+  - python
+  - ${program}
+  - "--config_file"
+  - ./configs/mmdet.faster_rcnn.resnest.yaml
+  - ${args_no_hyphens}
+method: bayes
+metric:
+  goal: maximize
+  name: "COCOMetric/AP (IoU=0.75) area=all"
+parameters:
+  # SOLVER.BASE_LR:
+  #   distribution: uniform
+  #   min: 0.0001
+  #   max: 0.1
+  # MODEL.ANCHOR_GENERATOR.SIZES:
+  #   values:
+  #     - "[[32],[64],[128],[256],[512]]"
+  #     - "[[16],[32],[64],[128],[256]]"
+  # SOLVER.WARMUP_ITERS:
+  #   distribution: int_uniform
+  #   min: 0
+  #   max: 2200
+  optimizer.params.lr:
+    distribution: uniform
+    max: 0.1
+    min: 0.0000001
+  # SOLVER.MAX_ITER:
+  #   value: 50
+early_terminate:
+  type: hyperband
+  min_iter: 2
+##
+# Create the sweep:
+#   wandb sweep ../sweeps/frcnn_sweep.yaml
+#
+# Run sweeps on multiple gpus in parallel (2 gpu's per sweep agent in this example):
+# CUDA_VISIBLE_DEVICES=0,1 wandb agent gbiamby/geoscreens_sweep/7pffzziv
+# CUDA_VISIBLE_DEVICES=2,3 wandb agent gbiamby/geoscreens_sweep/7pffzziv
+# CUDA_VISIBLE_DEVICES=4,5 wandb agent gbiamby/geoscreens_sweep/7pffzziv
+# CUDA_VISIBLE_DEVICES=6.7 wandb agent gbiamby/geoscreens_sweep/7pffzziv
+# CUDA_VISIBLE_DEVICES=8,9 wandb agent gbiamby/geoscreens_sweep/7pffzziv
+#
+# Alternatively, run these exports (each in a separate terminal):
+# export CUDA_VISIBLE_DEVICES=0,1
+# export CUDA_VISIBLE_DEVICES=2,3
+# export CUDA_VISIBLE_DEVICES=4,5
+# export CUDA_VISIBLE_DEVICES=6.7
+# export CUDA_VISIBLE_DEVICES=8,9
+#
+# And then run this in each terminal:
+# wandb agent gbiamby/geoscreens_sweep/1gm2say9
