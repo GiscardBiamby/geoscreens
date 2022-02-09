@@ -51,30 +51,36 @@ def get_model_mmdet(config: DictConfig, extra_args: dict) -> Tuple[ModuleType, M
     # Look in ~/.icevision/mmdetection_configs/mmdetection_configs-2.20.1/configs/ for the
     # downloaded configs
 
-    model_config: DictConfig = config.model_config
-    if model_config.mmdet in model_config.mmdet:
-        extra_args["cfg_options"] = model_config.mmdet["model_config.name"].cfg_options
+    model_name = config.model_config.name
+    backbone_name = config.model_config.backbone
+    model_config: DictConfig = config.model_config.mmdet[model_name]
 
-    if model_config.name.lower() == "faster_rcnn":
+    if "cfg_options" in model_config:
+        extra_args["cfg_options"] = {
+            k.replace("--", "."): v for k, v in model_config.cfg_options.items()
+        }
+        print("Using cfg_options: ", extra_args["cfg_options"])
+
+    if model_name.lower() == "faster_rcnn":
         backbone = cast(
             MMDetFasterRCNNBackboneConfig,
-            getattr(ice_mmdet.faster_rcnn.backbones, model_config.backbone),
+            getattr(ice_mmdet.faster_rcnn.backbones, backbone_name),
         )
         return ice_mmdet.faster_rcnn, backbone
-    elif model_config.name.lower() == "retinanet":
+    elif model_name.lower() == "retinanet":
         backbone = cast(
             MMDetRetinanetBackboneConfig,
-            getattr(ice_mmdet.retinanet.backbones, model_config.backbone),
+            getattr(ice_mmdet.retinanet.backbones, backbone_name),
         )
         return ice_mmdet.retinanet, backbone
-    elif model_config.name.lower() == "vfnet":
+    elif model_name.lower() == "vfnet":
         warnings.warn(
             "VFNet issue needs to be fixed. Solution is here, but not"
             " straightforward to implement: https://github.com/open-mmlab/mmdetection/issues/6871."
         )
         backbone = ice_mmdet.vfnet.backbones.swin_t_p4_w7_fpn_1x_coco
         return ice_mmdet.retinanet, backbone
-    raise NotImplementedError(f"Unsupported model: {model_config.name}")
+    raise NotImplementedError(f"Unsupported model: {model_name}")
 
 
 def get_model_ross(

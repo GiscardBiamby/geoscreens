@@ -8,10 +8,11 @@ model_config:
   mmdet:
     faster_rcnn:
       cfg_options:
-        model.rpn_head.anchor_generator.scales: [8]
-        model.rpn_head.anchor_generator.ratios: [0.5, 1.0, 2.0]
+        # the double slashes get replaced with a "." before sending to mmdet's "build_model" function. THis is stored like this so that we can pass values from wandb sweep configs, which require 
+        model--rpn_head--anchor_generator--scales: [8]
+        model--rpn_head--anchor_generator--ratios: [0.5, 1.0, 2.0]
         # These get multiplied by the `.scales` values to get the base anchor sizes:
-        model.rpn_head.anchor_generator.strides: [4, 8, 16, 32, 64]
+        model--rpn_head--anchor_generator--strides: [4, 8, 16, 32, 64]
 
 training:
   distributed: True
