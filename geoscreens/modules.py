@@ -182,9 +182,11 @@ class LightModelMMDet(MMDetAdapter):
 
         scheduler_type = self.config.scheduler.type
         if scheduler_type.lower() == "reducelronplateau":
-            scheduler = ReduceLROnPlateau(optimizer, **self.config.scheduler.params)
+            scheduler = ReduceLROnPlateau(optimizer, **self.config.scheduler[scheduler_type].params)
+        elif scheduler_type.lower() == "multisteplr":
+            scheduler = MultiStepLR(optimizer, **self.config.scheduler[scheduler_type].params)
         else:
-            raise NotImplementedError()
+            raise NotImplementedError(f"Unsupported scheduler type: {scheduler_type}")
 
         return {
             "optimizer": optimizer,

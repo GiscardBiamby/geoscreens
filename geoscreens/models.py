@@ -1,3 +1,4 @@
+import sys
 import warnings
 from types import ModuleType
 from typing import Any, Tuple, cast
@@ -24,7 +25,7 @@ def get_model_torchvision(
     import icevision.models.torchvision.retinanet as tv
 
     backbone = tv.backbones.resnet50_fpn
-    model_config = config.model_config
+    model_config = config.model_config.torchvision[config.model_config.name]
     sizes = model_config.params.get("anchor_sizes", [32, 64, 128, 256, 512])
     anchor_sizes = tuple((x, int(x * 2 ** (1.0 / 3)), int(x * 2 ** (2.0 / 3))) for x in sizes)
     ratios = model_config.params.get("aspect_ratios", [0.5, 1.0, 2.0])
@@ -47,7 +48,13 @@ def get_model_torchvision(
 def get_model_mmdet(config: DictConfig, extra_args: dict) -> Tuple[ModuleType, MMDetBackboneConfig]:
     import icevision.models.mmdet as ice_mmdet
 
+    # Look in ~/.icevision/mmdetection_configs/mmdetection_configs-2.20.1/configs/ for the
+    # downloaded configs
+
     model_config: DictConfig = config.model_config
+    if model_config.mmdet in model_config.mmdet:
+        extra_args["cfg_options"] = model_config.mmdet["model_config.name"].cfg_options
+
     if model_config.name.lower() == "faster_rcnn":
         backbone = cast(
             MMDetFasterRCNNBackboneConfig,
@@ -112,6 +119,12 @@ def get_model(config: DictConfig, pretrained=True) -> Tuple[nn.Module, ModuleTyp
         num_classes=config.dataset_config.num_classes,
         **extra_args,
     )
+
+    # print("BOOM")
+    # print(model.rpn_head.anchor_generator.scales)
+    # print(model.rpn_head.anchor_generator.ratios)
+    # print(model.rpn_head.anchor_generator.strides)
+    # sys.exit()
     modules = [backbone, model]
     if hasattr(model, "backbone"):
         modules.append(model.backbone)

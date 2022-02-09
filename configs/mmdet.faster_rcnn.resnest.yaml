@@ -5,16 +5,13 @@ model_config:
   framework: "mmdet"
   name: "faster_rcnn"
   backbone: "resnest50_fpn"
-  # params:
-  #   detections_per_img: 512
-  #   # Anchor box sizes. Default:  [32, 64, 128, 256, 512]
-  #   anchor_sizes: [32, 64, 128, 256, 512]
-  #   # Anchor box aspect ratios (h/w). Default: [0.5, 1.0, 2.0]
-  #   aspect_ratios: [0.08, 0.16, 0.25, 0.36, 0.5, 0.7, 1.0, 2.0]
-  #   score_thresh: 0.05
-  #   nms_thresh: 0.5
-  #   fg_iou_thresh: 0.5
-  #   bg_iou_thresh: 0.4
+  mmdet:
+    faster_rcnn:
+      cfg_options:
+        model.rpn_head.anchor_generator.scales: [8]
+        model.rpn_head.anchor_generator.ratios: [0.5, 1.0, 2.0]
+        # These get multiplied by the `.scales` values to get the base anchor sizes:
+        model.rpn_head.anchor_generator.strides: [4, 8, 16, 32, 64]
 
 training:
   distributed: True
@@ -36,11 +33,16 @@ training:
 
   # These are passed to the constructor for the Lightning Trainer
   params:
-    max_epochs: 32
+    max_epochs: 22
     gpus: 2
     precision: 32
     amp_backend: "native"
     check_val_every_n_epoch: 2
+    # ow much of training/validation/testing dataset(s) to check (float = fraction, int =
+    # num_batches).
+    limit_train_batches: 1.0
+    limit_val_batches: 1.0
+    limit_test_batches: 1.0
 
   early_stop:
     # Whether to use early stopping, (Default: false)
@@ -73,21 +75,20 @@ training:
 optimizer:
   type: "adam"
   params:
-    lr: 1e-3
+    lr: 0.00055
     # betas: null
     # eps: 1e-8
     # weight_decay: 0
     # amsgrad: false
 
 scheduler:
-  type: "ReduceLROnPlateau"
-  params:
-    mode: "min"
-    factor: 0.6
-    # Measured in epochs (fi monitor starts with "train")
-    patience: 6
-    min_lr: 1e-7
-    verbose: True
+  type: "MultiStepLR"
+  MultiStepLR:
+    params:
+      milestones: [14, 18, 20]
+      gamma: 0.1
+      last_epoch: -1
+      verbose: true
   config:
     # The unit of the scheduler's step size, could also be 'step'. 'epoch' updates the scheduler on
     # epoch end whereas 'step' updates it after a optimizer update.
@@ -106,4 +107,4 @@ scheduler:
     frequency: 1
     # If using the `LearningRateMonitor` callback to monitor the learning rate progress, this
     # keyword can be used to specify a custom logged name
-    name: None
+    name: "lr_scheduler"
