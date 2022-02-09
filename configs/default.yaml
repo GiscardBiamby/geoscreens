@@ -1,6 +1,5 @@
 project_name: "geoscreens"
 seed: 42
-gpus: [1]
 
 env:
   # Similar to cache dir, but can be used if specifically want to override where MMF stores your
@@ -47,6 +46,7 @@ dataset_config:
   pin_memory: ${training.pin_memory}
 
 training:
+  distributed: True
   # Name of the experiment, will be used while saving checkpoints and generating reports
   experiment_name: run
   # Size of the batch globally. If distributed or data_parallel is used, this will be divided

@@ -61,6 +61,31 @@ class LightModelEffdet(EffDetAdapter):
         result = super().training_step_end(*args, **kwargs)
         return result
 
+    def accumulate_metrics(self, preds):
+        for metric in self.metrics:
+            metric.accumulate(preds=preds)
+
+    def log(self, *args, **kwargs):
+        if self.config.training.get("distributed", False):
+            kwargs["sync_dist"] = True
+        super().log(*args, **kwargs)
+
+    def finalize_metrics(self) -> None:
+        _metrics = {}
+        for metric in self.metrics:
+            metric_logs = metric.finalize()
+            for k, v in metric_logs.items():
+                for entry in self.metrics_keys_to_log_to_prog_bar:
+                    if entry[0] == k:
+                        self.log(entry[1], v, prog_bar=True)
+                    metric_key = str(k)
+                    if "StatKeyPerClass" in metric_key:
+                        _metrics[f"{metric.name}-PC/{k}"] = v
+                    else:
+                        _metrics[f"{metric.name}/{k}"] = v
+
+        self.trainer.logger.log_metrics(_metrics, step=self.trainer.global_step)
+
 
 class LightModelTorch(TorchRetinaNetAdapter):
     def __init__(
@@ -108,6 +133,31 @@ class LightModelTorch(TorchRetinaNetAdapter):
     def training_step_end(self, *args, **kwargs):
         result = super().training_step_end(*args, **kwargs)
         return result
+
+    def accumulate_metrics(self, preds):
+        for metric in self.metrics:
+            metric.accumulate(preds=preds)
+
+    def log(self, *args, **kwargs):
+        if self.config.training.get("distributed", False):
+            kwargs["sync_dist"] = True
+        super().log(*args, **kwargs)
+
+    def finalize_metrics(self) -> None:
+        _metrics = {}
+        for metric in self.metrics:
+            metric_logs = metric.finalize()
+            for k, v in metric_logs.items():
+                for entry in self.metrics_keys_to_log_to_prog_bar:
+                    if entry[0] == k:
+                        self.log(entry[1], v, prog_bar=True)
+                    metric_key = str(k)
+                    if "StatKeyPerClass" in metric_key:
+                        _metrics[f"{metric.name}-PC/{k}"] = v
+                    else:
+                        _metrics[f"{metric.name}/{k}"] = v
+
+        self.trainer.logger.log_metrics(_metrics, step=self.trainer.global_step)
 
 
 class LightModelMMDet(MMDetAdapter):
@@ -157,6 +207,31 @@ class LightModelMMDet(MMDetAdapter):
         result = super().training_step_end(*args, **kwargs)
         return result
 
+    def accumulate_metrics(self, preds):
+        for metric in self.metrics:
+            metric.accumulate(preds=preds)
+
+    def log(self, *args, **kwargs):
+        if self.config.training.get("distributed", False):
+            kwargs["sync_dist"] = True
+        super().log(*args, **kwargs)
+
+    def finalize_metrics(self) -> None:
+        _metrics = {}
+        for metric in self.metrics:
+            metric_logs = metric.finalize()
+            for k, v in metric_logs.items():
+                for entry in self.metrics_keys_to_log_to_prog_bar:
+                    if entry[0] == k:
+                        self.log(entry[1], v, prog_bar=True)
+                    metric_key = str(k)
+                    if "StatKeyPerClass" in metric_key:
+                        _metrics[f"{metric.name}-PC/{k}"] = v
+                    else:
+                        _metrics[f"{metric.name}/{k}"] = v
+
+        self.trainer.logger.log_metrics(_metrics, step=self.trainer.global_step)
+
 
 class LightModelUltralytics(YoloAdapter):
     def __init__(
@@ -204,6 +279,31 @@ class LightModelUltralytics(YoloAdapter):
     def training_step_end(self, *args, **kwargs):
         result = super().training_step_end(*args, **kwargs)
         return result
+
+    def accumulate_metrics(self, preds):
+        for metric in self.metrics:
+            metric.accumulate(preds=preds)
+
+    def log(self, *args, **kwargs):
+        if self.config.training.get("distributed", False):
+            kwargs["sync_dist"] = True
+        super().log(*args, **kwargs)
+
+    def finalize_metrics(self) -> None:
+        _metrics = {}
+        for metric in self.metrics:
+            metric_logs = metric.finalize()
+            for k, v in metric_logs.items():
+                for entry in self.metrics_keys_to_log_to_prog_bar:
+                    if entry[0] == k:
+                        self.log(entry[1], v, prog_bar=True)
+                    metric_key = str(k)
+                    if "StatKeyPerClass" in metric_key:
+                        _metrics[f"{metric.name}-PC/{k}"] = v
+                    else:
+                        _metrics[f"{metric.name}/{k}"] = v
+
+        self.trainer.logger.log_metrics(_metrics, step=self.trainer.global_step)
 
 
 def build_module(model, config: DictConfig, **kwargs):

@@ -1,5 +1,5 @@
 program: train_geo.py
-project: geoscreens_sweep
+project: geoscreens_sweep_002
 command:
   - ${env}
   - python
@@ -7,7 +7,7 @@ command:
   - "--config_file"
   - ./configs/mmdet.faster_rcnn.resnest.yaml
   - ${args_no_hyphens}
-method: bayes
+method: random
 metric:
   goal: maximize
   name: "COCOMetric/AP (IoU=0.75) area=all"
@@ -26,32 +26,36 @@ parameters:
   #   max: 2200
   optimizer.params.lr:
     distribution: uniform
-    max: 0.1
+    max: 0.001
     min: 0.0000001
   # SOLVER.MAX_ITER:
   #   value: 50
-early_terminate:
-  type: hyperband
-  min_iter: 2
+# early_terminate:
+#   # hyperband is the only early stopping type can choose in wandb. Hyperband paper
+#   # https://arxiv.org/pdf/1603.06560.pdf
+#   type: hyperband
+#   min_iter: 2
+#   eta: 3
 ##
 # Create the sweep:
+#   cd ./tools
 #   wandb sweep ../sweeps/frcnn_sweep.yaml
 #
 # Run the sweeps (Method 1):
 # Run sweeps on multiple gpus in parallel (2 gpu's per sweep agent in this example):
-# CUDA_VISIBLE_DEVICES=0,1 wandb agent gbiamby/geoscreens_sweep/SWEEP_ID
-# CUDA_VISIBLE_DEVICES=2,3 wandb agent gbiamby/geoscreens_sweep/SWEEP_ID
-# CUDA_VISIBLE_DEVICES=4,5 wandb agent gbiamby/geoscreens_sweep/SWEEP_ID
-# CUDA_VISIBLE_DEVICES=6,7 wandb agent gbiamby/geoscreens_sweep/SWEEP_ID
-# CUDA_VISIBLE_DEVICES=8,9 wandb agent gbiamby/geoscreens_sweep/SWEEP_ID
+#   CUDA_VISIBLE_DEVICES=0,1 wandb agent gbiamby/geoscreens_sweep/SWEEP_ID
+#   CUDA_VISIBLE_DEVICES=2,3 wandb agent gbiamby/geoscreens_sweep/SWEEP_ID
+#   CUDA_VISIBLE_DEVICES=4,5 wandb agent gbiamby/geoscreens_sweep/SWEEP_ID
+#   CUDA_VISIBLE_DEVICES=6,7 wandb agent gbiamby/geoscreens_sweep/SWEEP_ID
+#   CUDA_VISIBLE_DEVICES=8,9 wandb agent gbiamby/geoscreens_sweep/SWEEP_ID
 #
 # Run the sweeps (Method 2):
 # Alternatively, run these exports (each in a separate terminal):
-# export CUDA_VISIBLE_DEVICES="0,1"
-# export CUDA_VISIBLE_DEVICES="2,3"
-# export CUDA_VISIBLE_DEVICES="4,5"
-# export CUDA_VISIBLE_DEVICES="6,7"
-# export CUDA_VISIBLE_DEVICES="8,9"
+#   export CUDA_VISIBLE_DEVICES="0,1"
+#   export CUDA_VISIBLE_DEVICES="2,3"
+#   export CUDA_VISIBLE_DEVICES="4,5"
+#   export CUDA_VISIBLE_DEVICES="6,7"
+#   export CUDA_VISIBLE_DEVICES="8,9"
 #
 # And then run this in each terminal:
-# wandb agent gbiamby/geoscreens_sweep/mlxemf4x
+#   wandb agent gbiamby/geoscreens_sweep_002/npv9rzwo

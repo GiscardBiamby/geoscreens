@@ -1,3 +1,4 @@
+import warnings
 from types import ModuleType
 from typing import Any, Tuple, cast
 
@@ -60,6 +61,10 @@ def get_model_mmdet(config: DictConfig, extra_args: dict) -> Tuple[ModuleType, M
         )
         return ice_mmdet.retinanet, backbone
     elif model_config.name.lower() == "vfnet":
+        warnings.warn(
+            "VFNet issue needs to be fixed. Solution is here, but not"
+            " straightforward to implement: https://github.com/open-mmlab/mmdetection/issues/6871."
+        )
         backbone = ice_mmdet.vfnet.backbones.swin_t_p4_w7_fpn_1x_coco
         return ice_mmdet.retinanet, backbone
     raise NotImplementedError(f"Unsupported model: {model_config.name}")

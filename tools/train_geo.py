@@ -1,4 +1,6 @@
 import os
+
+os.environ["WANDB_START_METHOD"] = "thread"
 import sys
 from argparse import ArgumentParser
 from pathlib import Path
@@ -19,8 +21,6 @@ from geoscreens.consts import PROJECT_ROOT
 from geoscreens.geo_data import GeoScreensDataModule
 from geoscreens.models import get_model
 from geoscreens.modules import build_module
-
-os.environ["WANDB_START_METHOD"] = "thread"
 
 
 def param_search(config, geo_screens, model_name, metrics):
