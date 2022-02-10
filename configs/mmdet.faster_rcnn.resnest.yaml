@@ -8,7 +8,9 @@ model_config:
   mmdet:
     faster_rcnn:
       cfg_options:
-        # the double slashes get replaced with a "." before sending to mmdet's "build_model" function. THis is stored like this so that we can pass values from wandb sweep configs, which require 
+        # the double slashes get replaced with a "." before sending to mmdet's "build_model"
+        # function. THis is stored like this so that we can pass values from wandb sweep configs,
+        # which require
         model--rpn_head--anchor_generator--scales: [8]
         model--rpn_head--anchor_generator--ratios: [0.5, 1.0, 2.0]
         # These get multiplied by the `.scales` values to get the base anchor sizes:
@@ -34,7 +36,7 @@ training:
 
   # These are passed to the constructor for the Lightning Trainer
   params:
-    max_epochs: 22
+    max_epochs: 18
     gpus: 2
     precision: 32
     amp_backend: "native"
@@ -86,7 +88,7 @@ scheduler:
   type: "MultiStepLR"
   MultiStepLR:
     params:
-      milestones: [14, 18, 20]
+      milestones: [8, 12, 16]
       gamma: 0.1
       last_epoch: -1
       verbose: true

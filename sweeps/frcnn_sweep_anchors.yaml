@@ -50,3 +50,20 @@ parameters:
 #
 # And then run this in each terminal:
 #   wandb agent gbiamby/geoscreens_sweep_002/npv9rzwo
+
+#
+#
+# Killing zombie processes from training/sweeping
+#
+# List all processes id's, along with the start command, along with how long processes have been
+# running:
+#
+#   ps -eo pid,comm,cmd:280,start,etime | grep -i geo
+#
+# List all processes with "geo" in the process name or start command:
+#
+#   pgrep -a -f train_geo
+#
+# Kill any process with "resnest" in the name or start command:
+#
+#   sudo pkill -f resnest
