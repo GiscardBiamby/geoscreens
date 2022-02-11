@@ -4,6 +4,7 @@ ftfy
 gitup
 isodate
 jsons
+label-studio-sdk
 ninja
 omegaconf
 opencv-python-headless

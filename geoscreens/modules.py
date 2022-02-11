@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import List, Union
 
 import torch.nn as nn
+from icevision.engines.lightning.lightning_model_adapter import LightningModelAdapter
 from icevision.metrics import COCOMetric, COCOMetricType, Metric
 from icevision.models.mmdet.common.bbox.lightning.model_adapter import ModelAdapter as MMDetAdapter
 from icevision.models.ross.efficientdet.lightning.model_adapter import ModelAdapter as EffDetAdapter
@@ -308,7 +309,7 @@ class LightModelUltralytics(YoloAdapter):
         self.trainer.logger.log_metrics(_metrics, step=self.trainer.global_step)
 
 
-def build_module(model, config: DictConfig, **kwargs):
+def build_module(model, config: DictConfig, **kwargs) -> LightningModelAdapter:
     model_config: DictConfig = config.model_config
     if model_config.framework == "mmdet":
         return LightModelMMDet(model, config, **kwargs)

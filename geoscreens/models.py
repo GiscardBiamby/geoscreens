@@ -1,10 +1,13 @@
+import logging
 import sys
 import warnings
+from pathlib import Path
 from types import ModuleType
-from typing import Any, Tuple, cast
+from typing import Any, Tuple, Union, cast
 
+import torch
 import torch.nn as nn
-from icevision.backbones import BackboneConfig
+from icevision.engines.lightning.lightning_model_adapter import LightningModelAdapter
 from icevision.models.mmdet.models.faster_rcnn.backbones.resnet_fpn import (
     MMDetFasterRCNNBackboneConfig,
 )
@@ -15,8 +18,11 @@ from icevision.models.mmdet.utils import MMDetBackboneConfig
 from icevision.models.ross.efficientdet.utils import EfficientDetBackboneConfig
 from icevision.models.torchvision.backbones.backbone_config import TorchvisionBackboneConfig
 from icevision.models.ultralytics.yolov5.utils import YoloV5BackboneConfig
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
+from pytorch_lightning import LightningModule
 from torchvision.models.detection.anchor_utils import AnchorGenerator
+
+from geoscreens.modules import build_module
 
 
 def get_model_torchvision(
@@ -138,3 +144,41 @@ def get_model(config: DictConfig, pretrained=True) -> Tuple[nn.Module, ModuleTyp
         if hasattr(obj, "param_groups"):
             delattr(obj, "param_groups")
     return model, model_module
+
+
+def load_model_from_path(
+    path: Union[str, Path], config_path: Union[str, Path] = None, device: torch.device = None
+) -> Tuple[DictConfig, ModuleType, nn.Module, LightningModelAdapter]:
+    if isinstance(path, str):
+        path = Path(path).resolve()
+    assert path.exists(), f"Model path does not exist: {path}"
+
+    if path.is_dir():
+        ckpt_dir = path
+        ckpt_path = (
+            (path / "best.ckpt") if (path / "best.ckpt").exists() else (path / "current.ckpt")
+        )
+        assert ckpt_path.exists(), f"Could not find .ckpt file at location: {ckpt_path}"
+    else:
+        assert (
+            path.suffix == ".ckpt"
+        ), f"Invalid file extension. Expected .ckpt but got {path.suffix}"
+        ckpt_path = path
+        ckpt_dir = path.parent
+        assert ckpt_path.exists(), f".ckpt file does not exist: {ckpt_path}"
+    if not config_path:
+        config_path = ckpt_dir / "config.yaml"
+    elif isinstance(config_path, str):
+        config_path = Path(config_path).resolve()
+    assert config_path.exists(), f"Model config path does not exist: {config_path}"
+
+    config = cast(DictConfig, OmegaConf.load(config_path))
+    logging.disable(logging.INFO)
+    model, module = get_model(config, pretrained=False)
+    logging.disable(logging.CRITICAL)
+    light_model = build_module(model, config)
+    if device:
+        light_model = cast(LightningModelAdapter, light_model.to(device))
+    light_model.load_state_dict(torch.load(ckpt_path)["state_dict"])
+
+    return config, module, model, light_model
