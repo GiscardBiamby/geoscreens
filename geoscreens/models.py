@@ -179,6 +179,6 @@ def load_model_from_path(
     light_model = build_module(model, config)
     if device:
         light_model = cast(LightningModelAdapter, light_model.to(device))
-    light_model.load_state_dict(torch.load(ckpt_path)["state_dict"])
+    light_model.load_state_dict(torch.load(ckpt_path, map_location=device)["state_dict"])
 
     return config, module, model, light_model
