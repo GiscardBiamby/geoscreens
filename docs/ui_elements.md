@@ -74,6 +74,7 @@
 
 * <http://localhost:8093/projects/58/data?tab=96&task=232549>
 * <http://localhost:8093/projects/58/data?tab=96&task=232589>
+  <http://localhost:8093/projects/59/data?tab=98&task=354241>
 
 ### status_bar
 

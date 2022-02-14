@@ -1,6 +1,6 @@
 from pathlib import Path
 from types import ModuleType
-from typing import Union
+from typing import Any, Dict, Union, cast
 
 from icevision import tfms
 from icevision.data import Dataset, DataSplitter, RandomSplitter
@@ -30,9 +30,12 @@ class GeoScreensDataModule(LightningDataModule):
             data_splitter=RandomSplitter([0.7, 0.3], seed=233), cache_filepath=self.cache_path
         )
         print("classes: ", self.parser.class_map)
+        self.id_to_class = cast(
+            Dict[int, str],
+            {cat_id: label for label, cat_id in self.parser.class_map._class2id.items()},
+        )
+        self.class_to_id = self.parser.class_map._class2id
 
-        # TODO: Remove the unnecessary augmentations, like rotations, not needed for this dataset?
-        # Transforms
         # size is set to 384 because EfficientDet requires its inputs to be divisible by 128
         # train_tfms = tfms.A.Adapter(
         #     [

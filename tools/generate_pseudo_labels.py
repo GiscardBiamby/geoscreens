@@ -42,9 +42,9 @@ def get_labelstudio_export_from_api(
 
 
 def get_labelstudio_tasks_export(args, project: Project, export_type: str = "JSON") -> List[Dict]:
-    if args.export_path:
-        print("Using pre-downloaded export file: ", args.export_path)
-        return json.load(open(args.export_path, "r", encoding="utf-8"))
+    if args.tasks_export_path:
+        print("Using pre-downloaded export file: ", args.tasks_export_path)
+        return json.load(open(args.tasks_export_path, "r", encoding="utf-8"))
     else:
         print("Getting tasks export from label-studio API...")
         export = cast(List[Dict], get_labelstudio_export_from_api(project, export_type))
@@ -431,18 +431,26 @@ if __name__ == "__main__":
         "--compute_preds",
         dest="compute_preds",
         action="store_true",
-        help="If specified, the labelling pipeline will also compute new detections using the "
-        "specified model checkpoint and include those predictions in the new project that is pushed"
-        " to label-studio.",
+        help="""
+        If specified, the labelling pipeline will also compute new detections using the specified
+        model checkpoint and include those predictions in the new project that is pushed to
+        label-studio.
+        """
     )
     sp_label_pipeline.add_argument(
-        "--export_path",
+        "--tasks_export_path",
         type=Path,
         help=(
-            "Path to tasks export json that has already been exported. If specified "
-            "the script will use this file and bypass the step of exporting the "
-            "tasks json from the label-studio API. Ex: "
-            "/shared/gbiamby/geo/exports/geoscreens_006-from_proj_id_5.json"
+            """
+            Path to tasks export json that has already been exported. If specified the script will
+            use this file and bypass the step of exporting the tasks json from the label-studio API.
+            Ex: /shared/gbiamby/geo/exports/geoscreens_006-from_proj_id_5.json
+
+            If you have a tasks export file that has detection output and you want to import those
+            to label-studio you can pass that here too. The use case would be that something went
+            wrong when trying to upload the script before, you corrected the issue and want to just
+            upload those detections to label-studio without re-running the detector.
+            """
         ),
     )
     sp_label_pipeline.set_defaults(compute_preds=False)
