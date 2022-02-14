@@ -158,7 +158,9 @@ def load_model_from_path(
         ckpt_path = (
             (path / "best.ckpt") if (path / "best.ckpt").exists() else (path / "current.ckpt")
         )
-        assert ckpt_path.exists(), f"Could not find .ckpt file at location: {ckpt_path}"
+        assert (
+            ckpt_path.exists()
+        ), f"Could not find 'best' or 'current' .ckpt file at location: {ckpt_path}"
     else:
         assert (
             path.suffix == ".ckpt"

@@ -103,6 +103,7 @@ def train_geo(config: DictConfig) -> None:
     geoscreens_data = GeoScreensDataModule(config, model_type)
     metrics = [
         COCOMetric(
+            config=config,
             metric_type=COCOMetricType.bbox,
             show_pbar=True,
             class2id=geoscreens_data.parser.class_map._class2id,

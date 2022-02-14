@@ -177,3 +177,19 @@ scheduler:
     # If using the `LearningRateMonitor` callback to monitor the learning rate progress, this
     # keyword can be used to specify a custom logged name
     name: "lr_scheduler"
+# eval:
+#   cocoeval_config:
+#     params:
+#       max_dets: [1, 10, 100]
+#       # These area values get squared and those are used to bucket detections/ground_truths into
+#       # area bins
+#       area_ranges:
+#         - [0, 1e5]
+#         - [0, 32]
+#         - [32, 96]
+#         - [96, 1e5]
+#       # Correspond these to the area_ranges values:
+#       area_range_labels: ["all", "small", "medium", "large"]
+#       # This config value  isn't supported yet (needs modification to pycocotools/cocobetter
+#       # cocoeval.py):
+#       #summary_ious: [0.25, 0.50, 0.75]

@@ -64,10 +64,9 @@ def append_image_metadata(tasks: List):
     Adds image dimensions to the 'data' key of the label-studio tasks json
     """
     for t in tqdm(tasks, desc="compute_img_sizes", total=len(tasks)):
-        if "full_path" in t["data"]:
-            t["data"]["full_path"] = t["data"]["image"].replace(
-                "/data/local-files/?d=", "/shared/gbiamby/geo/screenshots/"
-            )
+        t["data"]["full_path"] = t["data"]["image"].replace(
+            "/data/local-files/?d=", "/shared/gbiamby/geo/screenshots/"
+        )
         if not ("width" in t["data"] and "height" in t["data"]):
             width, height = Image.open(t["data"]["full_path"]).size
             t["data"]["width"] = width
@@ -403,9 +402,12 @@ if __name__ == "__main__":
 
     def add_common_args(_sp: ArgumentParser):
         _sp.add_argument(
-            "--target_version", type=str, default="007", help="Target dataset version."
+            "--target_version",
+            type=str,
+            default="007",
+            help="Target dataset version.",
         )
-        _sp.add_argument("--ls_project_id", type=int, default=57)
+        _sp.add_argument("--ls_project_id", type=int, default=58)
         _sp.add_argument("--ls_url", type=str, default="http://localhost:6008")
         _sp.add_argument(
             "--ls_api_key", type=str, default="3ac2082c83061cf1056d636a25bee65771792731"
@@ -423,7 +425,7 @@ if __name__ == "__main__":
     sp_label_pipeline.add_argument(
         "--checkpoint_path",
         type=Path,
-        default=Path("/shared/gbiamby/geo/models/best_ap_at_iou0.50"),
+        default=Path("/shared/gbiamby/geo/models/geoscreens_009-resnest50_fpn-with_augs"),
     )
     sp_label_pipeline.add_argument(
         "--compute_preds",
@@ -436,7 +438,12 @@ if __name__ == "__main__":
     sp_label_pipeline.add_argument(
         "--export_path",
         type=Path,
-        help="Path to tasks export json that has already been exported. If specified the script will use this file and bypass the step of exporting the tasks json from the label-studio API. Ex: /shared/gbiamby/geo/exports/geoscreens_006-from_proj_id_5.json",
+        help=(
+            "Path to tasks export json that has already been exported. If specified "
+            "the script will use this file and bypass the step of exporting the "
+            "tasks json from the label-studio API. Ex: "
+            "/shared/gbiamby/geo/exports/geoscreens_006-from_proj_id_5.json"
+        ),
     )
     sp_label_pipeline.set_defaults(compute_preds=False)
     args = parser.parse_args()
