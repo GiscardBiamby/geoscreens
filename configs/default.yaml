@@ -33,7 +33,7 @@ model_config:
         bg_iou_thresh: 0.4
 
 dataset_config:
-  dataset_name: geoscreens_001
+  dataset_name: geoscreens_009
   # If a relative path, it's relative to PROJECT_ROOT (aka root of the git repo if you've cloned
   # this project);
   data_root: "./datasets"
@@ -42,7 +42,7 @@ dataset_config:
   img_dir: "./datasets/images"
   img_size: 640
   # Include an extra class in num_classes for the background class (which gets added automatically)
-  num_classes: 47
+  num_classes: 64
   batch_size: ${training.batch_size}
   num_workers: ${training.num_workers}
   pin_memory: ${training.pin_memory}
@@ -51,8 +51,9 @@ training:
   distributed: True
   # Name of the experiment, will be used while saving checkpoints and generating reports
   experiment_name: run
-  # Size of the batch globally. If distributed or data_parallel is used, this will be divided
-  # equally among GPUs
+  # Size of the batch globally. Don't need to change this when adjusting num gpus. The effective
+  # batch size becomes num_gpus * batch_size.
+  # https://pytorch-lightning.readthedocs.io/en/stable/advanced/multi_gpu.html
   batch_size: 12
   # Number of workers to be used in dataloaders
   num_workers: 4

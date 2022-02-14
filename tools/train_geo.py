@@ -97,11 +97,17 @@ def configure_callbacks(config: DictConfig) -> List[Callback]:
 
 def train_geo(config: DictConfig) -> None:
     seed_everything(config.seed, workers=True)
-    metrics = [COCOMetric(metric_type=COCOMetricType.bbox, show_pbar=True)]
 
     print("creating model")
     model, model_type = get_model(config)
     geoscreens_data = GeoScreensDataModule(config, model_type)
+    metrics = [
+        COCOMetric(
+            metric_type=COCOMetricType.bbox,
+            show_pbar=True,
+            class2id=geoscreens_data.parser.class_map._class2id,
+        )
+    ]
     light_model = build_module(model, config, metrics=metrics)
     wandb_logger = build_wandb_logger(config, light_model)
     callbacks = configure_callbacks(config)
@@ -162,7 +168,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--config_file",
         type=Path,
-        default=(PROJECT_ROOT / "configs" / "torchvision.retinanet.yaml"),
+        default=(PROJECT_ROOT / "configs" / "mmdet.faster_rcnn.resnest.yaml"),
     )
     parser.add_argument(
         "overrides",

@@ -1,6 +1,19 @@
 """
-This script adds predictions from a given geoscreens detection modoel to a label-studio tasks file.
+This script runs a geoscreens detector against videos from a given location and saves the
+results.The script supports parallel runs in a very basic way -- by using the 1--device1 and
+1--num_devices` parameters a script launched with device=N will only process videos where the video
+index MOD num_devices == device_id. So you can parallelize the work by launching 10 script
+instances, each with --num_devices=10, and --device=[some value between 0 and 9].
+
+The output from this script can be used for many things:
+
+    1. Segment videos into contiguous chunks of "in game" state.
+    2. Mask out UI elements.
+    3. Categorize the game types (drone, stadium, time challenge, darts, etc) by inspecting which UI
+       elements are detected.
 """
+
+
 import datetime
 import io
 import json

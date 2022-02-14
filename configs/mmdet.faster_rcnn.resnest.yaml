@@ -12,16 +12,18 @@ model_config:
         # function. THis is stored like this so that we can pass values from wandb sweep configs,
         # which require
         model--rpn_head--anchor_generator--scales: [8]
-        model--rpn_head--anchor_generator--ratios: [0.5, 1.0, 2.0]
+        model--rpn_head--anchor_generator--ratios:
+          [0.08, 0.16, 0.25, 0.36, 0.5, 0.7, 1, 2]
         # These get multiplied by the `.scales` values to get the base anchor sizes:
         model--rpn_head--anchor_generator--strides: [4, 8, 16, 32, 64]
 
 training:
   distributed: True
   # Name of the experiment, will be used while saving checkpoints and generating reports
-  experiment_name: run
-  # Size of the batch globally. If distributed or data_parallel is used, this will be divided
-  # equally among GPUs
+  experiment_name: null
+  # Size of the batch globally. Don't need to change this when adjusting num gpus. The effective
+  # batch size becomes num_gpus * batch_size.
+  # https://pytorch-lightning.readthedocs.io/en/stable/advanced/multi_gpu.html
   batch_size: 8
   # Number of workers to be used in dataloaders
   num_workers: 8
@@ -36,7 +38,7 @@ training:
 
   # These are passed to the constructor for the Lightning Trainer
   params:
-    max_epochs: 18
+    max_epochs: 22
     gpus: 2
     precision: 32
     amp_backend: "native"
@@ -88,7 +90,7 @@ scheduler:
   type: "MultiStepLR"
   MultiStepLR:
     params:
-      milestones: [8, 12, 16]
+      milestones: [14, 18, 20]
       gamma: 0.1
       last_epoch: -1
       verbose: true

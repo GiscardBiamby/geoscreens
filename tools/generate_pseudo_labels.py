@@ -1,47 +1,29 @@
 """
-This script adds predictions from a given geoscreens detection modoel to a label-studio tasks file.
+This script adds predictions from a given geoscreens detection model to a label-studio.
+
+    1. Export tasks (each "task" is an image) as json from label-studio API
+    2. Run detector against all tasks, add results to the json
+    3. Clone original label-studio project and upload the new tasks JSON
 """
-import datetime
 import io
 import json
-import os
 import sys
-import uuid
 import zipfile
-from argparse import ArgumentParser
+from argparse import ArgumentParser, Namespace
 from copy import deepcopy
-from datetime import timezone
 from pathlib import Path
-from types import ModuleType
-from typing import Dict, List, Optional, Union, cast
+from typing import Dict, List, Optional, Set, Union, cast
 
 import numpy as np
-import PIL
-import torch
-import torch.nn as nn
-from icevision import models, tfms
-from icevision.data import Dataset
-from icevision.metrics import COCOMetric, COCOMetricType, Metric
 from label_studio_sdk import Client, Project
-from omegaconf import DictConfig
-from pytorch_lightning import LightningDataModule, Trainer, seed_everything
+from label_studio_sdk.data_manager import Column, Filters, Operator, Type
+from PIL import Image
 from requests import Response
 from tqdm.contrib import tenumerate, tmap, tzip
 from tqdm.contrib.bells import tqdm, trange
 
 from geoscreens.consts import PROJECT_ROOT
-from geoscreens.geo_data import GeoScreensDataModule
-from geoscreens.models import load_model_from_path
-
-
-def get_model(args):
-    seed_everything(42, workers=True)
-    DEVICE = torch.device(f"cuda:{args.device}")
-
-    config, module, model, light_model = load_model_from_path(args.checkpoint_path, device=DEVICE)
-    light_model.eval()
-    geoscreens_data = GeoScreensDataModule(config, module)
-    return config, module, model, light_model, geoscreens_data
+from geoscreens.utils import batchify
 
 
 def get_labelstudio_export_from_api(
@@ -62,227 +44,162 @@ def get_labelstudio_export_from_api(
 def get_labelstudio_tasks_export(args, project: Project, export_type: str = "JSON") -> List[Dict]:
     if args.export_path:
         print("Using pre-downloaded export file: ", args.export_path)
-        return json.load(open(args.export_path, "r"))
+        return json.load(open(args.export_path, "r", encoding="utf-8"))
     else:
+        print("Getting tasks export from label-studio API...")
         export = cast(List[Dict], get_labelstudio_export_from_api(project, export_type))
         json.dump(
             export,
             open(
-                args.save_dir / f"geoscreens_{args.target_version}-proj_id_{project.id}.json", "w"
+                args.save_dir / f"geoscreens_{args.target_version}-from_proj_id_{project.id}.json",
+                "w",
             ),
+            ensure_ascii=False,
         )
         return export
 
 
-def batchify(iterable, batch_size=1):
-    """Splits an iterable / list-like into batches of size n"""
-    l = len(iterable)
-    for ndx in range(0, l, batch_size):
-        yield iterable[ndx : min(ndx + batch_size, l)]
-
-
-def compute_image_sizes(tasks: List):
+def append_image_metadata(tasks: List):
+    """
+    Adds image dimensions to the 'data' key of the label-studio tasks json
+    """
     for t in tqdm(tasks, desc="compute_img_sizes", total=len(tasks)):
         if "full_path" in t["data"]:
             t["data"]["full_path"] = t["data"]["image"].replace(
                 "/data/local-files/?d=", "/shared/gbiamby/geo/screenshots/"
             )
         if not ("width" in t["data"] and "height" in t["data"]):
-            width, height = PIL.Image.open(t["data"]["full_path"]).size
+            width, height = Image.open(t["data"]["full_path"]).size
             t["data"]["width"] = width
             t["data"]["height"] = height
 
 
-def get_raw_preds(
-    tasks: List[Dict],
-    config: DictConfig,
-    module: ModuleType,
-    model: nn.Module,
-    geoscreens_data: LightningDataModule,
-):
+def append_old_preds(args: Namespace, tasks: List[Dict]) -> None:
     """
-    Updates all tasks with a new "preds_raw" key, which has all the detector predictions (given
-    confidence threshold)
+    Handle including predictions in the label pipeline. i.e., either compute new predictions, or
+    convert the existing ones so they will import correctly into a new label-studio project.
     """
-    infer_tfms = tfms.A.Adapter(
-        [*tfms.A.resize_and_pad(config.dataset_config.img_size), tfms.A.Normalize()]
+    if args.compute_preds:
+        print("Generating pseudolabels...")
+        from geoscreens.pseudolabels import compute_labelstudio_preds
+
+        # TODO: Do we need to update this function to remove the "predictions" key from
+        # t["annotations"]?
+        compute_labelstudio_preds(args, tasks)
+        return
+
+    for i, t in enumerate(tasks):
+        result = []
+        if "annotations" in t:
+            anns_with_preds = [
+                a for a in t["annotations"] if "prediction" in a and "result" in a["prediction"]
+            ]
+            if anns_with_preds:
+                result = anns_with_preds[0]["prediction"]["result"]
+                # Remove the prediction from the annotations dict:
+                t["annotations"] = [a for a in t["annotations"] if "prediction" not in a]
+
+        t["predictions"] = [{"result": result}]
+
+
+def get_by_label_name(results: List[Dict], label_name: str):
+    return next(
+        (
+            result["value"]
+            for result in results
+            if result["value"]["rectanglelabels"][0] == label_name
+        ),
+        None,
     )
 
-    # Weird but batch_size of 1 is the fastest here. Maybe because there is no data loader with
-    # threading to feed the GPU? If time, look intro the other prediction methods (as alternatives
-    # to module.build_infer_batch). Maybe create a dataloader over all the images.
-    batch_size = 1
-    num_batches = (len(tasks) // batch_size) + (1 if (len(tasks) % batch_size) > 0 else 0)
-    for i, _batch in tqdm(
-        enumerate(batchify(tasks, batch_size=1)), desc="make_predictions", total=num_batches
-    ):
-        # if i >= 40:
-        #     break
-        imgs = []
-        for t in _batch:
-            img_path = t["data"]["image"]
-            new_file_name = img_path.replace(
-                "/data/local-files/?d=", "/shared/gbiamby/geo/screenshots/"
-            )
-            img_path = Path(new_file_name)
-            img = np.array(PIL.Image.open(img_path))
-            imgs.append(img)
-        # Predict
-        infer_ds = Dataset.from_images(imgs, infer_tfms, class_map=geoscreens_data.parser.class_map)
-        batch, samples = module.build_infer_batch(infer_ds)
-        preds = module.predict(model, infer_ds, detection_threshold=0.5)
-        for t, pred in zip(_batch, preds):
-            if not (pred and hasattr(pred, "detection")):
+
+def get_by_labels_name(results: List[Dict], label_names: Set[str]):
+    return [
+        result["value"]
+        for result in results
+        if result["value"]["rectanglelabels"][0] in label_names
+    ]
+
+
+def do_label_fixes(tasks: List[Dict]) -> None:
+    guess_btn_labels = set(
+        [
+            "guess",
+            "guess_grey",
+            "make_a_guess",
+            "guess_w_icon_only",
+            "place_your_pin_grey",
+        ]
+    )
+
+    def fix_anns(anns: List[Dict], debug=False):
+        for a in anns:
+            if "result" not in a:
                 continue
-            dets = pred.detection
-            dets = {
-                "label_ids": [int(l) for l in dets.label_ids],
-                "scores": dets.scores.tolist(),
-                "bboxes": [
-                    {
-                        "xmin": float(box.xmin),
-                        "ymin": float(box.ymin),
-                        "xmax": float(box.xmax),
-                        "ymax": float(box.ymax),
-                    }
-                    for box in dets.bboxes
-                ],
-            }
-            t["preds_raw"] = dets
-            # print("preds: ", preds[0].pred.detection)
-    print(t)
+            mini_map_bbox = get_by_label_name(a["result"], "in_game_mini_map")
+            if mini_map_bbox:
+                if mini_map_bbox["rectanglelabels"][0] == "in_game_mini_map":
+                    bbox_pct_of_total_img_area = (
+                        100.0 * mini_map_bbox["width"] * mini_map_bbox["height"] / (100.0 ** 2)
+                    )
+                    if bbox_pct_of_total_img_area > 20.0:
+                        mini_map_bbox["rectanglelabels"][0] = "in_game_map_expanded"
+                        # Convert the associated "Guess" buttons:
+                        for btn_bbox in get_by_labels_name(a["result"], guess_btn_labels):
+                            if 0.85 <= (btn_bbox["width"] / mini_map_bbox["width"]) <= 1.15:
+                                btn_bbox["rectanglelabels"][0] = (
+                                    btn_bbox["rectanglelabels"][0] + "_expanded"
+                                )
+
+    for t in tasks:
+        fix_anns(t["annotations"])
+        if t["annotations"]:
+            fix_anns([t["annotations"][0]["prediction"]], debug=True)
 
 
-def get_best_pred_per_label(t):
-    # TODO: Update this to not do any aggregation for certain categories. e.g., "other" categories
-    # can appear multiple times in one UI, so we want to include those.
-    best = {}
-    for i, (bbox, score, label_id) in enumerate(
-        zip(t["preds_raw"]["bboxes"], t["preds_raw"]["scores"], t["preds_raw"]["label_ids"])
-    ):
-        if label_id not in best:
-            best[label_id] = (bbox, score, label_id)
-        if score > best[label_id][1]:
-            best[label_id] = (bbox, score, label_id)
-    return best.values()
+def other_fixes(tasks: List[Dict]) -> None:
+    for t in tasks:
+        if "project" in t:
+            del t["project"]
+        if "meta" in t:
+            del t["meta"]
 
 
-def reverse_point(x, y, width, height, curr_dim):
-    """
-    Transform bbox coordinates from (curr_dim, curr_dim) pixel space to size=(width, height) pixel
-    space. assumes width is greater than height. This is used because the detector bbox coordinates
-    are in a square pixel space (config.dataset_config.img_size)**2, and we need to convert the bbox
-    coordinates back to the original image pixel space (e.g., 1280*720).
-    """
-    # Back to width*width:
-    new_x = x * (width / curr_dim)
-    new_y = y * (width / curr_dim)
-    # Remove vertical padding
-    y_pad = (width - height) / 2
-    new_y -= y_pad
-    return new_x, new_y
+def debug_tasks(tasks):
+    for t in tasks:
+        if "Qm3FPspE6Nw/frame_00000121.jpg" in t["data"]["full_path"]:
+            print("")
+            print(t)
 
 
-def get_bboxes(t: Dict, config: DictConfig, class_map) -> List[Dict]:
-    """
-    From t (a single task json), return list[dict], each dict containing bounding boxes. Results are
-    limited to one bbox per label_id (highest confidence is used to pick the best one for each
-    label_id)
-    """
-    if "preds_raw" not in t:
-        return
-    width, height = t["data"]["width"], t["data"]["height"]
-    results = []
-    for i, (bbox, score, label_id) in enumerate(get_best_pred_per_label(t)):
-        xmin, ymin = reverse_point(
-            bbox["xmin"], bbox["ymin"], width, height, config.dataset_config.img_size
-        )
-        xmax, ymax = reverse_point(
-            bbox["xmax"], bbox["ymax"], width, height, config.dataset_config.img_size
-        )
-        pixel_x = (xmin * 100.0) / width
-        pixel_y = (ymin * 100.0) / height
-        box_width = xmax - xmin + 1
-        box_height = ymax - ymin + 1
-        pixel_width = (box_width * 100.0) / width
-        pixel_height = (box_height * 100.0) / height
-        result = {
-            "value": {
-                "rotation": 0,
-                "rectanglelabels": [class_map.get_by_id(label_id)],
-                "width": pixel_width,
-                "height": pixel_height,
-                "x": pixel_x,
-                "y": pixel_y,
-                "score": score,
-                "generated_at": datetime.datetime.utcnow().isoformat() + "Z",
-            },
-            "bbox": bbox,
-            "data": t["data"],
-        }
-        results.append(result)
-    return results
-
-
-def compute_labelstudio_preds(tasks, config, geoscreens_data):
-    for i, t in enumerate(tqdm(tasks, total=len(tasks), desc="compute_labelstudio_preds")):
-        # if i >= 10:
-        #     break
-        results = []
-        bboxes = get_bboxes(t, config, geoscreens_data.parser.class_map)
-        if not bboxes:
-            t["predictions"] = [{"result": []}]
-            continue
-        for i, bbox in enumerate(bboxes):
-            # print("")
-            uid = str(uuid.uuid4()).replace("-", "")[:10]
-            result = {
-                "from_name": "label",
-                "id": f"{uid}",
-                "image_rotation": 0,
-                "origin": "manual",
-                "original_height": t["data"]["height"],
-                "original_width": t["data"]["width"],
-                "to_name": "image",
-                "type": "rectanglelabels",
-                "value": deepcopy(bbox["value"]),
-            }
-            results.append(result)
-        t["predictions"] = [{"result": results}]
-        t["data"]["preds_ckpt"] = str(args.checkpoint_path)
-        t["data"]["preds_model"] = (
-            f"{config.model_config.framework}-"
-            f"{config.model_config.name}-"
-            f"{config.model_config.backbone if 'backbone' in config.model_config else ''}"
-        )
-        t["data"]["preds_model_dataset"] = config.dataset_config.dataset_name
-
-
-def generate_pseudo_labels(args):
+def run_label_pipeline(args):
+    print("Running label pipeline")
     # Connect to the Label Studio API and check the connection
     ls = Client(url=args.ls_url, api_key=args.ls_api_key)
     ls.check_connection()
     project = ls.get_project(id=args.ls_project_id)
+    print("Project views: ", project.get_views())
     tasks = get_labelstudio_tasks_export(args, project)
 
     if hasattr(tasks, "__len__"):
-        print(tasks[:1])
         print(f"Exported {len(tasks)} tasks from label-studio")
+        print("First task from export: ", tasks[:1])
+        print("")
 
-    config, module, model, light_model, geoscreens_data = get_model(args)
-    get_raw_preds(tasks, config, module, model, geoscreens_data)
-    compute_image_sizes(tasks)
-    compute_labelstudio_preds(tasks, config, geoscreens_data)
-    print(tasks[0])
-    json.dump(
-        tasks,
-        open(
-            args.save_dir
-            / f"geoscreens_{args.target_version}-proj_id_{project.id}_with_preds.json",
-            "w",
-        ),
+    append_image_metadata(tasks)
+    do_label_fixes(tasks)
+    append_old_preds(args, tasks)
+    other_fixes(tasks)
+    # tasks = tasks[:2]
+    print("label_pipeline finished")
+    print("First task from completed pipeline: ", tasks[0])
+    print("")
+    save_path = (
+        args.save_dir
+        / f"geoscreens_{args.target_version}-from_proj_id_{project.id}_with_preds.json"
     )
-    create_new_ls_project(args, config, ls, project, tasks)
+    json.dump(tasks, open(save_path, "w"), ensure_ascii=False)
+    create_new_ls_project(args, ls, project, tasks)
 
 
 def clone_project(args, client: Client, old_project: Project, tasks: List[Dict]):
@@ -315,74 +232,215 @@ def clone_project(args, client: Client, old_project: Project, tasks: List[Dict])
         ]
     )
     proj_params = {k: v for k, v in proj_params.items() if k not in remove_keys}
-    print(len(proj_params.keys()))
-    print(proj_params)
+    print("Cloning old project_id: ", old_project.id)
+    # print("Old project param keys: ", len(proj_params.keys()))
+    print("New project params: ", proj_params)
+    print("")
     project = client.start_project(**proj_params)
-    print(project.id)
+    print("New label-studio project_id: ", project.id)
+
+    response = project.make_request(
+        "POST",
+        "/api/dm/views",
+        json={
+            "project": project.id,
+            "data": {
+                "filters": Filters.create(Filters.AND, []),
+                "title": "Default",
+                "hiddenColumns": {
+                    "explore": [
+                        "tasks:completed_at",
+                        "tasks:annotations_results",
+                        "tasks:annotations_ids",
+                        "tasks:predictions_score",
+                        "tasks:predictions_model_versions",
+                        "tasks:predictions_results",
+                        "tasks:file_upload",
+                        "tasks:created_at",
+                    ],
+                    "labeling": [
+                        "tasks:completed_at",
+                        "tasks:cancelled_annotations",
+                        "tasks:total_predictions",
+                        "tasks:annotators",
+                        "tasks:annotations_results",
+                        "tasks:annotations_ids",
+                        "tasks:predictions_score",
+                        "tasks:predictions_model_versions",
+                        "tasks:predictions_results",
+                        "tasks:file_upload",
+                        "tasks:created_at",
+                    ],
+                },
+            },
+        },
+    )
+    all_view = response.json()
+    response = project.make_request(
+        "POST",
+        "/api/dm/views",
+        json={
+            "project": project.id,
+            "data": {
+                "filters": Filters.create(
+                    Filters.AND,
+                    [
+                        Filters.item(
+                            Column.total_annotations, Operator.EQUAL, Type.Number, Filters.value(0)
+                        )
+                    ],
+                ),
+                "title": "Unlabeled",
+                "hiddenColumns": {
+                    "explore": [
+                        "tasks:completed_at",
+                        "tasks:annotations_results",
+                        "tasks:annotations_ids",
+                        "tasks:predictions_score",
+                        "tasks:predictions_model_versions",
+                        "tasks:predictions_results",
+                        "tasks:file_upload",
+                        "tasks:created_at",
+                    ],
+                    "labeling": [
+                        "tasks:completed_at",
+                        "tasks:cancelled_annotations",
+                        "tasks:total_predictions",
+                        "tasks:annotators",
+                        "tasks:annotations_results",
+                        "tasks:annotations_ids",
+                        "tasks:predictions_score",
+                        "tasks:predictions_model_versions",
+                        "tasks:predictions_results",
+                        "tasks:file_upload",
+                        "tasks:created_at",
+                    ],
+                },
+            },
+        },
+    )
+    unlabeled_view = response.json()
     return project
 
 
-def create_new_ls_project(
-    args, config: DictConfig, client: Client, old_project: Project, tasks: List[Dict]
-):
+def create_new_ls_project(args, client: Client, old_project: Project, tasks: List[Dict]):
     project = clone_project(args, client, old_project, tasks)
+
     print("")
-    print("Importing: ")
-    print(tasks[0])
+    print("Importing tasks to label-studio...")
+    # print(tasks[0])
     task_ids = []
     batch_size = 500
     for _batch in tqdm(
         batchify(tasks, batch_size), desc="import_tasks", total=(len(tasks) // batch_size)
     ):
-        print(type(_batch))
         task_ids.extend(project.import_tasks(list(_batch)))
-
+        # break
     print(f"Created project_id: {project.id}, with {len(task_ids)} tasks")
-    # project.make_request()
-    # project.create_predictions()
-
-    # project.import_tasks()
-    # project.create_prediction(task_ids[0], result="Dog", score=0.9)
 
 
-def save_coco_anns(target_version: str, project: Project):
+def save_coco_anns(args):
+    ls = Client(url=args.ls_url, api_key=args.ls_api_key)
+    ls.check_connection()
+    project = ls.get_project(id=args.ls_project_id)
     coco_export = cast(
         Response, get_labelstudio_export_from_api(project, "COCO", download_all_tasks="false")
     )
     print("DONE API CALL")
     print(coco_export.headers)
-    coco_save_dir = PROJECT_ROOT / f"datasets/geoscreens_{target_version}"
+    coco_save_dir = PROJECT_ROOT / f"datasets/geoscreens_{args.target_version}"
     coco_save_dir.mkdir(parents=True, exist_ok=True)
     z = zipfile.ZipFile(io.BytesIO(coco_export.content))
     z.extract("result.json", str(coco_save_dir))
-    (coco_save_dir / "result.json").rename(coco_save_dir / f"geoscreens_{target_version}.json")
+    ann_path = coco_save_dir / f"geoscreens_{args.target_version}.json"
+    (coco_save_dir / "result.json").rename(ann_path)
+    fix_anns(ann_path)
+
+
+def fix_anns(ann_path: Path):
+    """
+    Apply some fixes to the coco annotations after they are exported from label-studio. For example,
+    the image path needs to be transformed from an URL to a path we can use in a dataloader.
+    """
+    data = json.load(open(ann_path, "r", encoding="utf-8"))
+    data["categories"][0]["name"] = "background"
+
+    for img in data["images"]:
+        img["file_name"] = img["file_name"].replace("/data/local-files/?d=screen_samples_auto/", "")
+
+    # Exclude categories
+    exclude_cat_names = [
+        "game_finished_white_box",
+        "game_finished_well_done_big_box",
+        "video",
+        "curr_state",
+    ]
+    exclude_cat_ids = {
+        c["id"]: c["name"] for c in data["categories"] if c["name"] in exclude_cat_names
+    }
+    anns = cast(list, data["annotations"])
+    for i, ann in enumerate(anns):
+        if ann["category_id"] in exclude_cat_ids:
+            anns.pop(i)
+    original_cat_length = len(data["categories"])
+    data["categories"] = [c for c in data["categories"] if c["id"] not in exclude_cat_ids]
+    filtered_cat_length = len(data["categories"])
+    print(
+        f"Filtered categories. Origina len: {original_cat_length}, New len: {filtered_cat_length}"
+    )
+    # icevision is weird and instead of remapping the category_id's it fills them in with `None``,
+    # so we have to take the max of the cat_id instead of the cardinality:
+    print(f"Update num_classes to: {max([ c['id'] for c in data['categories']])}")
+    json.dump(data, open(Path(ann_path), "w"), indent=4, sort_keys=True, ensure_ascii=False)
 
 
 if __name__ == "__main__":
     parser = ArgumentParser()
-    parser.add_argument("--device", type=str, default="0")
-    parser.add_argument(
+    sp = parser.add_subparsers(dest="cmd")
+    sp.required = True
+    sp_get_anns = sp.add_parser("get_anns")
+    sp_label_pipeline = sp.add_parser("label_pipeline")
+
+    def add_common_args(_sp: ArgumentParser):
+        _sp.add_argument(
+            "--target_version", type=str, default="007", help="Target dataset version."
+        )
+        _sp.add_argument("--ls_project_id", type=int, default=57)
+        _sp.add_argument("--ls_url", type=str, default="http://localhost:6008")
+        _sp.add_argument(
+            "--ls_api_key", type=str, default="3ac2082c83061cf1056d636a25bee65771792731"
+        )
+
+    add_common_args(sp_get_anns)
+    add_common_args(sp_label_pipeline)
+    sp_label_pipeline.add_argument("--device", type=str, default="0")
+    sp_label_pipeline.add_argument(
         "--save_dir",
         type=Path,
         default=Path("/shared/gbiamby/geo/exports"),
         help="Where to save the label-studio tasks export file.",
     )
-    # TODO: Should comment out the default value, just have it here to make debugging easier:
-    parser.add_argument(
-        "--export_path",
-        type=Path,
-        default=Path("/shared/gbiamby/geo/exports/geoscreens_006-proj_id_5.json"),
-    )
-    parser.add_argument("--target_version", type=str, default="006", help="Target dataset version.")
-    parser.add_argument("--ls_project_id", type=int, default=5)
-    parser.add_argument("--ls_url", type=str, default="http://localhost:6008")
-    parser.add_argument(
-        "--ls_api_key", type=str, default="3ac2082c83061cf1056d636a25bee65771792731"
-    )
-    parser.add_argument(
+    sp_label_pipeline.add_argument(
         "--checkpoint_path",
         type=Path,
         default=Path("/shared/gbiamby/geo/models/best_ap_at_iou0.50"),
     )
+    sp_label_pipeline.add_argument(
+        "--compute_preds",
+        dest="compute_preds",
+        action="store_true",
+        help="If specified, the labelling pipeline will also compute new detections using the "
+        "specified model checkpoint and include those predictions in the new project that is pushed"
+        " to label-studio.",
+    )
+    sp_label_pipeline.add_argument(
+        "--export_path",
+        type=Path,
+        help="Path to tasks export json that has already been exported. If specified the script will use this file and bypass the step of exporting the tasks json from the label-studio API. Ex: /shared/gbiamby/geo/exports/geoscreens_006-from_proj_id_5.json",
+    )
+    sp_label_pipeline.set_defaults(compute_preds=False)
     args = parser.parse_args()
-    generate_pseudo_labels(args)
+    if args.cmd == "get_anns":
+        save_coco_anns(args)
+    elif args.cmd == "label_pipeline":
+        run_label_pipeline(args)

@@ -1,13 +1,8 @@
-# README
+# geoscreens
+
+A dataset to detect UI elements in geoguessr videos!
 
 ## Installation
-
-### Update Project Name
-
-1. Rename `./PROJECT_NAME.code-workspace`
-2. Rename `./PROJECT_NAME` folder
-3. Edit `./manifest` file with new project name: `PYTHON_ENV_NAME=PROJECT_NAME`
-4. Edit `name="PROJECT_NAME"` and `url="https://github.com/USERNAME/PROJECT_NAME/"` line in in `./setup.py`
 
 ### Setup Python Environment
 
@@ -16,4 +11,17 @@ This uses Anaconda to create the package, and installs requirements from require
 ```bash
 cd scripts
 ./create_env.sh
+```
+
+## Setup Data
+
+Copy images (\~26K total) from `/shared/gbiamby/geo/screenshots/screen_samples_auto/`.
+
+Alternatively you can set `img_dir` in the dataset_config section of your config file(s) to point to the above path and skip the copying step.
+
+## Train a Detector
+
+```bash
+cd ./tools
+python train_geo.py --config_file ../configs/mmdet_faster_rcnn.resnest.yaml
 ```
