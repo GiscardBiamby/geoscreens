@@ -35,7 +35,7 @@ jupyter contrib nbextension install --user
 
 pushd ..
 pip install -e . -c constraints.txt
-popd
+popd || exit
 
 # ## Object Detection Framework(s):
 pip install mmcv-full==1.4.0 -f https://download.openmmlab.com/mmcv/dist/cu113/torch1.10.0/index.html -c ../constraints.txt --upgrade
@@ -55,6 +55,7 @@ popd || return
 # Install customized version of pycocotools (https://github.com/GiscardBiamby/cocobetter):
 git clone git@github.com:GiscardBiamby/cocobetter.git
 pushd ./cocobetter/PythonAPI || return
+git checkout geoscreens
 pip install -e . -c ../../../constraints.txt
 popd || return
 
