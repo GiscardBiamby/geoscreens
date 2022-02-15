@@ -201,7 +201,10 @@ def run_label_pipeline(args):
     create_new_ls_project(args, ls, project, tasks)
 
 
-def clone_project(args, client: Client, old_project: Project, tasks: List[Dict]):
+def clone_project(args, client: Client, old_project: Project) -> Project:
+    """
+    Clones a specified a label-studio project.
+    """
     proj_params = deepcopy(old_project.params)
     proj_params["title"] = f"geoscreens_{args.target_version}"
     remove_keys = set(
@@ -238,6 +241,31 @@ def clone_project(args, client: Client, old_project: Project, tasks: List[Dict])
     project = client.start_project(**proj_params)
     print("New label-studio project_id: ", project.id)
 
+    hidden_columns = {
+        "explore": [
+            "tasks:completed_at",
+            "tasks:annotations_results",
+            "tasks:annotations_ids",
+            "tasks:predictions_score",
+            "tasks:predictions_model_versions",
+            "tasks:predictions_results",
+            "tasks:file_upload",
+            "tasks:created_at",
+        ],
+        "labeling": [
+            "tasks:completed_at",
+            "tasks:cancelled_annotations",
+            "tasks:total_predictions",
+            "tasks:annotators",
+            "tasks:annotations_results",
+            "tasks:annotations_ids",
+            "tasks:predictions_score",
+            "tasks:predictions_model_versions",
+            "tasks:predictions_results",
+            "tasks:file_upload",
+            "tasks:created_at",
+        ],
+    }
     response = project.make_request(
         "POST",
         "/api/dm/views",
@@ -246,35 +274,11 @@ def clone_project(args, client: Client, old_project: Project, tasks: List[Dict])
             "data": {
                 "filters": Filters.create(Filters.AND, []),
                 "title": "Default",
-                "hiddenColumns": {
-                    "explore": [
-                        "tasks:completed_at",
-                        "tasks:annotations_results",
-                        "tasks:annotations_ids",
-                        "tasks:predictions_score",
-                        "tasks:predictions_model_versions",
-                        "tasks:predictions_results",
-                        "tasks:file_upload",
-                        "tasks:created_at",
-                    ],
-                    "labeling": [
-                        "tasks:completed_at",
-                        "tasks:cancelled_annotations",
-                        "tasks:total_predictions",
-                        "tasks:annotators",
-                        "tasks:annotations_results",
-                        "tasks:annotations_ids",
-                        "tasks:predictions_score",
-                        "tasks:predictions_model_versions",
-                        "tasks:predictions_results",
-                        "tasks:file_upload",
-                        "tasks:created_at",
-                    ],
-                },
+                "hiddenColumns": hidden_columns,
             },
         },
     )
-    all_view = response.json()
+
     response = project.make_request(
         "POST",
         "/api/dm/views",
@@ -290,40 +294,38 @@ def clone_project(args, client: Client, old_project: Project, tasks: List[Dict])
                     ],
                 ),
                 "title": "Unlabeled",
-                "hiddenColumns": {
-                    "explore": [
-                        "tasks:completed_at",
-                        "tasks:annotations_results",
-                        "tasks:annotations_ids",
-                        "tasks:predictions_score",
-                        "tasks:predictions_model_versions",
-                        "tasks:predictions_results",
-                        "tasks:file_upload",
-                        "tasks:created_at",
-                    ],
-                    "labeling": [
-                        "tasks:completed_at",
-                        "tasks:cancelled_annotations",
-                        "tasks:total_predictions",
-                        "tasks:annotators",
-                        "tasks:annotations_results",
-                        "tasks:annotations_ids",
-                        "tasks:predictions_score",
-                        "tasks:predictions_model_versions",
-                        "tasks:predictions_results",
-                        "tasks:file_upload",
-                        "tasks:created_at",
-                    ],
-                },
+                "hiddenColumns": hidden_columns,
             },
         },
     )
-    unlabeled_view = response.json()
+
+    response = project.make_request(
+        "POST",
+        "/api/dm/views",
+        json={
+            "project": project.id,
+            "data": {
+                "filters": Filters.create(
+                    Filters.AND,
+                    [
+                        Filters.item(
+                            Column.total_annotations,
+                            Operator.GREATER,
+                            Type.Number,
+                            Filters.value(0),
+                        )
+                    ],
+                ),
+                "title": "Labeled",
+                "hiddenColumns": hidden_columns,
+            },
+        },
+    )
     return project
 
 
 def create_new_ls_project(args, client: Client, old_project: Project, tasks: List[Dict]):
-    project = clone_project(args, client, old_project, tasks)
+    project = clone_project(args, client, old_project)
 
     print("")
     print("Importing tasks to label-studio...")
@@ -339,6 +341,10 @@ def create_new_ls_project(args, client: Client, old_project: Project, tasks: Lis
 
 
 def save_coco_anns(args):
+    """
+    Download ground truth annotations from label-studio, saving them in COCO format as a new version
+    of geoscreens_{target_version} dataset.
+    """
     ls = Client(url=args.ls_url, api_key=args.ls_api_key)
     ls.check_connection()
     project = ls.get_project(id=args.ls_project_id)
@@ -435,7 +441,7 @@ if __name__ == "__main__":
         If specified, the labelling pipeline will also compute new detections using the specified
         model checkpoint and include those predictions in the new project that is pushed to
         label-studio.
-        """
+        """,
     )
     sp_label_pipeline.add_argument(
         "--tasks_export_path",

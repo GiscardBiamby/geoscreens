@@ -18,6 +18,7 @@ import json
 import sys
 from argparse import ArgumentParser
 from copy import deepcopy
+from datetime import datetime, timedelta
 from pathlib import Path
 from types import ModuleType
 from typing import Any, Dict, List, Optional, Tuple, Union, cast
@@ -177,14 +178,15 @@ def make_dets_df(cats: Dict[int, str], frame_detections: Dict) -> pd.DataFrame:
             for k, v in frame_detections.items()
         ]
     )
-    df_framedets["ingame_trio"] = df_framedets.labels_set.apply(
-        lambda x: "in_game_mini_map" in x and "status_bar" in x and "guess_grey" in x
-    )
     df_framedets["label_set_count"] = df_framedets.merge(
         pd.DataFrame(df_framedets.groupby(["labels_set"]).agg(cnt=("frame_id", "count"))),
         left_on="labels_set",
         right_on="labels_set",
     )["cnt"]
+    df_framedets["seconds"] = df_framedets.frame_id.apply(lambda frame_id: frame_id / 4.0)
+    df_framedets["time"] = df_framedets.frame_id.apply(
+        lambda frame_id: datetime.utcfromtimestamp(frame_id / 4.0).strftime("%H:%M:%S:%f")
+    )
     return df_framedets
 
 
@@ -222,7 +224,7 @@ def generate_detections(args, split: str):
     for video_info in tqdm(meta_data, total=len(meta_data), desc=f"segment_{split}_vids"):
         video_id = video_info["id"]
         print("")
-        print("Segmenting video_id: ", video_id)
+        print(f"Segmenting video_id: {video_id}, split: {split}.")
         csv_path = Path(args.save_dir / split / f"df_frame_dets-video_id_{video_id}.csv")
         if csv_path.exists():
             print("SKIP segment, csv_path exists: ", csv_path)
@@ -234,6 +236,7 @@ def generate_detections(args, split: str):
         # Note: don't use battle_royale_wait_screen for anything, it should have been labeled as
         # backaround
         df_frame_dets = make_dets_df(geoscreens_data.id_to_class, frame_detections)
+        print(f"Saving output: {csv_path}")
         df_frame_dets.to_csv(csv_path, header=True, index=False)
         df_frame_dets.to_pickle(str(csv_path.with_suffix(".pkl")))
 
