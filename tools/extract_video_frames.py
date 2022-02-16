@@ -13,9 +13,8 @@ import cv2
 import numpy as np
 import pandas as pd
 import PIL.Image as pil_img
-from tqdm.contrib import tenumerate, tmap, tzip
+from tqdm.auto import tqdm
 from tqdm.contrib.bells import tqdm, trange
-from tqdm.notebook import tqdm
 
 
 def sample_frames(args, video_id: str):
@@ -38,7 +37,7 @@ def sample_frames(args, video_id: str):
         cap.set(cv2.CAP_PROP_POS_MSEC, (seconds * 1000))
         success, image = cap.read()
         if success:
-            frame_out_path = args.out_dir / f"{video_path.stem}/frame_{count:08}.jpg"
+            frame_out_path = args.out_dir / f"{video_path.stem}/frame_{count:08}-{seconds}s.jpg"
             frame_out_path.parent.mkdir(exist_ok=True, parents=True)
             cv2.imwrite(str(frame_out_path), image)
         seconds = round(seconds + args.sample_every_seconds, 2)
@@ -47,12 +46,54 @@ def sample_frames(args, video_id: str):
     print("total frames captured: ", count, ", seconds: ", seconds)
 
 
+def add_task(tasks, path: Path):
+    image = str(path).replace("/shared/gbiamby/geo/screenshots/", "")
+    tasks.append(
+        {
+            "data": {
+                "image": f"/data/local-files/?d={image}",
+            },
+        }
+    )
+
+
+def sample_frames_specific(args, video_id: str, desired_frames=[59.50]):
+    """
+    Sample a frame every `args.sample_every_seconds` seconds from the specified video, saving the
+    frames to args.out_dir/<video_id>/.
+    """
+    video_path = (args.video_dir / video_id).with_suffix(".mp4")
+    assert video_path.exists(), str(video_path)
+    cap = cv2.VideoCapture(str(video_path))
+    if not cap.isOpened():
+        print("could not open :", video_path)
+    num_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    print(f"num_frames: {num_frames:,}")
+    desired_frames = [round(t, 2) for t in np.arange(0.0, 118.25, 2.0).tolist()]
+    count = 0
+    print(video_path)
+    tasks_json = []
+    for seconds in tqdm(desired_frames, total=len(desired_frames)):
+        cap.set(cv2.CAP_PROP_POS_MSEC, (seconds * 1000))
+        success, image = cap.read()
+        if success:
+            frame_out_path = args.out_dir / f"{video_path.stem}/frame_{count:08}-{seconds:08}s.jpg"
+            frame_out_path.parent.mkdir(exist_ok=True, parents=True)
+            add_task(tasks_json, frame_out_path)
+            cv2.imwrite(str(frame_out_path), image)
+        count += 1
+    cap.release()
+    print("total frames captured: ", count)
+    json.dump(tasks_json, open(args.out_dir / "tasks.json", "w"))
+
+
 def main(args: Namespace) -> None:
-    assert args.video_dir.exists()
-    assert args.out_dir.exists()
+    assert args.video_dir.exists(), str(args.video_dir)
+    args.out_dir.mkdir(parents=True, exist_ok=True)
 
     if args.video_id:
-        sample_frames(args, args.video_id)
+        # sample_frames(args, args.video_id)
+        sample_frames_specific(args, args.video_id)
     else:
         raise NotImplementedError("This code path not fully implemented yet.")
         """
@@ -82,12 +123,12 @@ if __name__ == "__main__":
     parser.add_argument(
         "--out_dir",
         type=Path,
-        default=Path("/shared/gbiamby/geo/screenshots/screen_samples_auto"),
+        default=Path("/shared/gbiamby/geo/screenshots/test/"),
         help="Where to save the extracted frames.",
     )
     parser.add_argument(
         "--sample_every_seconds",
-        type=int,
+        type=float,
         default=5.0,
         help="Number of seconds between each sampled frame.",
     )

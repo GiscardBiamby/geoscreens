@@ -215,6 +215,9 @@ def generate_detections(args, split: str):
     (args.save_dir / split).mkdir(parents=True, exist_ok=True)
     meta_data = get_geoguessr_split(split)
     max_videos = args.max_videos
+    if args.video_id:
+        id_list = [args.video_id]
+
     meta_data = [s for i, s in enumerate(meta_data) if s["id"] in id_list and i < max_videos]
     print("Total video count (before splitting across processes): ", len(meta_data))
     meta_data = [s for i, s in enumerate(meta_data) if (i % args.num_devices == args.device)]
@@ -226,7 +229,7 @@ def generate_detections(args, split: str):
         print("")
         print(f"Segmenting video_id: {video_id}, split: {split}.")
         csv_path = Path(args.save_dir / split / f"df_frame_dets-video_id_{video_id}.csv")
-        if csv_path.exists():
+        if csv_path.exists() and not args.video_id:
             print("SKIP segment, csv_path exists: ", csv_path)
             continue
         with torch.no_grad():
@@ -265,8 +268,8 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--frame_sample_rate",
-        type=int,
-        default=4,
+        type=float,
+        default=4.0,
         help="Num frames per second to sample.",
     )
     parser.add_argument(
@@ -287,6 +290,11 @@ if __name__ == "__main__":
         dest="fast_debug",
         action="store_true",
         help="Only perform detection for a small number of frames in the video.",
+    )
+    parser.add_argument(
+        "--video_id",
+        type=str,
+        help="",
     )
 
     args = parser.parse_args()

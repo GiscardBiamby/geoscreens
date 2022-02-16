@@ -8,7 +8,9 @@ source ../manifest
 conda activate "${ENV_NAME}"
 
 pushd ../
-
+export LOCAL_FILES_SERVING_ENABLED=true
+export LOCAL_FILES_DOCUMENT_ROOT=/shared/gbiamby/geo/screenshots
+export LABEL_STUDIO_LOCAL_FILES_SERVING_ENABLED=true
+export LABEL_STUDIO_LOCAL_FILES_DOCUMENT_ROOT=/shared/gbiamby/geo/screenshots
 label-studio start --port 6008
-
-popd
+popd || exit

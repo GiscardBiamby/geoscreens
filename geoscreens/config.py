@@ -55,9 +55,9 @@ def build_config(args: Namespace) -> DictConfig:
             f"lr_{config.optimizer.params.lr}",
         ]
     )
-    config.training.experiment_name = config.training.wand = exp_name
+    config.training.experiment_name += "--" + exp_name
 
-    # TODO: Add logit to reuse an existing folder if we are resuming training.
+    # TODO: Add logic to reuse an existing folder if we are resuming training.
     # TODO: If inference only, don't create a new folder, use existing one.
     version_cnt = 0
     save_dir_base = Path(f"{config.env.save_dir}/{exp_name}").resolve()

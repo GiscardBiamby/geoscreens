@@ -375,10 +375,10 @@ def fix_anns(ann_path: Path):
 
     # Exclude categories
     exclude_cat_names = [
-        "game_finished_white_box",
-        "game_finished_well_done_big_box",
-        "video",
-        "curr_state",
+        # "game_finished_white_box",
+        # "game_finished_well_done_big_box",
+        # "video",
+        # "curr_state",
     ]
     exclude_cat_ids = {
         c["id"]: c["name"] for c in data["categories"] if c["name"] in exclude_cat_names

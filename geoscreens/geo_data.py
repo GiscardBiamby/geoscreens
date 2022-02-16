@@ -56,14 +56,17 @@ class GeoScreensDataModule(LightningDataModule):
                         rotate_limit=0,
                         shift_limit=0.2,
                         scale_limit=0.2,
-                        p=0.3,
+                        p=0.5,
                     ),
                     lightning=None,
                     crop_fn=None,
                     pad=None,
                 ),
+                tfms.A.ColorJitter(),
+                tfms.A.Blur(),
+                tfms.A.ImageCompression(),
                 tfms.A.Normalize(),
-            ]
+            ],
         )
         valid_tfms = tfms.A.Adapter(
             [*tfms.A.resize_and_pad(dataset_config.img_size), tfms.A.Normalize()]
