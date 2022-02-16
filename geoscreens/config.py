@@ -1,4 +1,5 @@
 import os
+import uuid
 from argparse import Namespace
 from copy import deepcopy
 from dataclasses import dataclass
@@ -6,6 +7,7 @@ from pathlib import Path
 from typing import Union, cast
 
 from omegaconf import DictConfig, ListConfig, OmegaConf
+from pytorch_lightning.utilities.distributed import rank_zero_only
 
 from geoscreens.consts import PROJECT_ROOT
 
@@ -47,25 +49,21 @@ def build_config(args: Namespace) -> DictConfig:
     _resolve_path(config.dataset_config, "data_root", "./datasets")
     _resolve_path(config.dataset_config, "img_dir", "./datasets/images")
 
+    uid = str(uuid.uuid4()).replace("-", "")[:10]
     exp_name = "-".join(
         [
             f"{config.dataset_config.dataset_name}",
             f"model_{config.model_config.name}",
             f"bb_{config.model_config.backbone}",
-            f"lr_{config.optimizer.params.lr}",
+            f"{uid}",
         ]
     )
     config.training.experiment_name += "--" + exp_name
 
+    # with rank_zero_only():
     # TODO: Add logic to reuse an existing folder if we are resuming training.
     # TODO: If inference only, don't create a new folder, use existing one.
-    version_cnt = 0
-    save_dir_base = Path(f"{config.env.save_dir}/{exp_name}").resolve()
-    save_dir = save_dir_base / str(version_cnt)
-    while save_dir.exists():
-        save_dir = save_dir_base / str(version_cnt)
-        version_cnt += 1
-    save_dir.mkdir(exist_ok=True, parents=True)
+    save_dir = Path(f"{config.env.save_dir}/{config.training.experiment_name}").resolve()
     config.env.save_dir = str(save_dir)
 
     # Resolve the config here itself after full creation so that spawned workers don't face any
@@ -74,10 +72,15 @@ def build_config(args: Namespace) -> DictConfig:
     OmegaConf.set_struct(config, True)
     OmegaConf.set_readonly(config, True)
     print(OmegaConf.to_yaml(config))
+    save_config(config)
+    return cast(DictConfig, config)
+
+
+@rank_zero_only
+def save_config(config: DictConfig):
+    Path(config.env.save_dir).mkdir(exist_ok=True, parents=True)
     with open(Path(config.env.save_dir) / "config.yaml", "w") as fp:
         OmegaConf.save(config=config, f=fp)
-    # sys.exit()
-    return cast(DictConfig, config)
 
 
 def _register_resolvers():
