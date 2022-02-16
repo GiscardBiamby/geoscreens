@@ -60,9 +60,7 @@ def build_config(args: Namespace) -> DictConfig:
     )
     config.training.experiment_name += "--" + exp_name
 
-    # with rank_zero_only():
     # TODO: Add logic to reuse an existing folder if we are resuming training.
-    # TODO: If inference only, don't create a new folder, use existing one.
     save_dir = Path(f"{config.env.save_dir}/{config.training.experiment_name}").resolve()
     config.env.save_dir = str(save_dir)
 
