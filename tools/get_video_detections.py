@@ -212,7 +212,21 @@ def generate_detections(args, split: str):
         "jsqkwpdurgw", "OD2_TpEG-C0", "YHHAQkgs32M", "XM87FwIenH4", "C1RHyCSkkKM", "ppYi2iGMht4", "TKTZoyKhHco", "19c03AjUyI8", "74jleDoImYc", "k6Cw-X3zDuo", "uCbXqNRiHRY", "HRsqlJmj-hE", "P9SWbIShXc8", "IV4Pb__t6ys", "_EJjfqyaebo", "5mTvphLejLU", "K2XcndcvzSc", "Sgp-xuDo1gs", "PF0_X0ilLNQ", "j-FROoAWAdw", "i7K9f9l05qA", "7UJ6f-iP6Bc", "7nb9W76qdEc", "1bKzHmmoofg", "osTwgzWluVs", "4mUPPVoQ-kI", "XTKWfDyejck", "3nPxLoDdlxY", "nqlxwD5RY94", "XoHvL7T10pM", "1g4aAtsCUCI", "87qBSgbwLq8", "C8l-D_z2p6k", "bbBeyBFvAyQ", "dVFTw5pacsY", "ZDAZvXbmOSs", "bz04LZDf0Oo", "vAtsI9ZA11U", "LtaV054F5Rs", "ldyQwxNCzlo", "AIHJQEtcPqY", "NjriHMSM26k", "pcxL0W0RuTk", "XjzDqqvMEcU", "V4D-N71EvvM", "hVBhp7U0xQQ", "8__DkawMrPo", "alKpLiE-KY4", "4ftLC-J963E", "HlAZm63ooQY", "OQFa34FoVY8", "KSlCyDyda1M", "SAmkg58TybQ", "IyfiCVAeyhg", "__qlp6JpcPc", "Tjxb3UzaduA", "-C2718vV9v4", "hYMPlDM5j80", "hzm0mRZAOrY", "X-3h3RTPoRg", "yDO_FdDeHfs", "IpWokx3CtDg", "1rpQNdmTtvk", "76F1NoCzNLY", "V2H1po51T-A", "A960qcFjXK8", "MaVbMOJg4Mg", "fBfmMCCMXHk", "CYe9uv5G1hw", "Gk-1toFmMZo", "jCJoc-6iqng", "Y8yW_BsZ018", "6FKmF1LDPrw", "1ShNH_1lVsw", "iT1c92P40z8", "DE-6w16AhcQ", "jNKj2MXeah4", "w-aTpX4_vcg", "CC8CCvle0Vc", "bErSxaBHc1U", "BslAPtFdAnE", "Mv8DWoW5Ojs", "DU7SmB9yqpQ", "ZKCPfy5gcKs", "pFZoRi-T9c0", "q5FEts6gKII", "hzjA9gfxMeQ", "TDL3Jk3SaK4", "FGGfQH0XxL0", "zFuNkVjC6hQ", "tOXrATngKOY", "18C7YgxCkIw", "GvTVU0Qslc0", "HKPpZx0E8FY", "no5rJt2Pj-0", "2SzL5VBF_BI", "8LXi_tpkpSg", "DJp6sBH46KI", "y2eFiEO3BdQ", "pP4VQ9JClM4", "Y0BjWF5gWmk", "wvl9ecRASFM", "l6TtoNu1_Jg", "88jRjbWTesc", "GbgHjGPVzao", "5LXv8t_-6_c", "LcIkJQgAOyA", "5PGCL_L81UA", "y2SDYOw0SDU", "o1GEEkLVFsk", "54c2PpV65hU", "ti2co-2tymo", "hdUTzzDEV8g", "RBPYrNfjnHY", "5IyXNi8TbzM", "t9YiBXcb49g", "qi3_M5Udics", "2ZioLZEZTdI", "dEi4H8QFxIg", "WtzVRdkaY7Y", "26VxX9_chSw", "6wrhV6SnfnE", "3xm58Ccps1c", "MKSRbvmbTVo", "NsUjPBgFJGw", "hXYKSf6QO04", "B7_WcWmSZ_Y", "vKWbEE-ttYA", "0J7cQ4FiDCc", "N_OLaiTShLA", "BuZ-ld13p1I", "izjFsRDbt5k", "TVt1GKBZMzc", "1kwoT-9ClV4", "BJ-bEId-7yQ", "JXUWefGu67A", "WD9ARP45p_M", "V6rWoMiKsAw", "WqKqqN54fHo", "WEqf7L2KL4g", "itGph3begOY", "ep8WGVBNq7M", "67SQuXM5J0o", "tuGOZme6Xjg", "fs98qK3Lnpk", "88FFBre9GFA", "D4fiQwrF5vw", "FTcYSsoAw28", "EAoVoLtzovk", "edPiYaSZvx0", "6h0faOkFVpI", "euFnkGaA5IY", "AX5D2Bt__gE", "IwX1wEQsngE", "DkLLhsfa-PU", "R1toABTIp9s", "AXxUyPWLoJA", "sf0ToMiRIvM", "zlsM4XM9_Rk", "4k57dSg8Cws", "iy8jWAIaG0w", "YZxqCnxHPtE", "TJbSoBC1qpc", "FGidXjJl1vA", "JyfpZuVSisU", "01zaYTxpmxk", "-L9-kfYb4_A", "ta4rw6YR8LQ", "7G_CTikQVEM", "PoNt0SfS5jk", "kdmw3fmfg88", "rb4dy7HLH8M", "HKTCO8mh5d8", "zfZ6BxPne4E", "nJPm9WqyTTU", "22v6KBUXEeQ", "rbfjUayf-gk", "wNr9eLPIits", "VQI85nD7h4U", "96Th1-UjSOU", "OSYcvcQn2w8", "hG6rJf0RBnk", "yYEk84kRqPo", "nuqUwvdZ30M", "hEZVNDqid2I", "pMgqa0mOExo", "E-rvEqFNBcs", "4aUHm5A_66w", "obF2AR2e5P8", "uhbki9G10zU", "GjuSYrjqaMs", "_osOExSsNyk", "UPWSMhAF3ME", "I_5u_woAjm4", "qQyXQtLoGyE", "o8qQAjkaXMM", "tCqhl589AdM", "m0e92O4DJKE", "_MBsJDwzn1M", "nyHeQWnm8YA", "kCSNzVDJ_W4", "7vz-osmi6tw", "Mk9x9VZpIi4", "De1Xc6EXj9Q", "UCQg1LJOywc", "HdQjTia26y4", "WMvw_CCYeG0", "utv4vBdgSG0", "liNzvqszWPc", "j4SXWDgDSSE", "ZcFbyUJbP94", "1GehhMoUwnc", "j_UyjWUW-cU", "jjTvJdgmsmc", "OwLe8JNyynw", "el4lgYNq6mY", "9w_En85TFqc", "E0DHszfXnsc", "7-uBrcBKCpE", "iRTAdF_o1-4", "nXx6gUklog8", "wnH6quY_MUE",
     ])
     # fmt: on
+    id_list = set(
+        [
+            "AF9uezxZDeE",
+            "9RQUIk1OwAY",
+            "S5Ne5eoHxsY",
+            "nyHeQWnm8YA",
+            "hZWt1PYH3hI",
+            "dY1RXh-43q4",
+            "83m9ys4kxro",
+            "osTwgzWluVs",
+            "o8qQAjkaXMM",
+        ]
+    )
     (args.save_dir / split).mkdir(parents=True, exist_ok=True)
+    print("SAVE_DIR: ", args.save_dir)
     meta_data = get_geoguessr_split(split)
     max_videos = args.max_videos
     if args.video_id:
@@ -298,10 +312,31 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
-    for split in ["train", "val", "test"]:
-        print("")
-        print("")
-        print("=" * 100)
-        print("=" * 100)
-        print("Processisng split: ", split)
-        generate_detections(args, split)
+    # args.save_dir = args.save_dir / args.checkpoint_path.name
+    # for split in ["train", "val", "test"]:
+    #     print("")
+    #     print("")
+    #     print("=" * 100)
+    #     print("=" * 100)
+    #     print("Processisng split: ", split)
+    #     generate_detections(args, split)
+
+    save_dir_base = Path(args.save_dir)
+    checkpoints = [
+        # "/home/gbiamby/proj/geoscreens/tools/output/geoscreens_010-model_faster_rcnn-bb_resnest50_fpn-lr_0.00055/20",
+        # "/home/gbiamby/proj/geoscreens/tools/output/geoscreens_010-model_faster_rcnn-bb_resnest50_fpn-lr_0.00055/24",
+        # "/home/gbiamby/proj/geoscreens/tools/output/geoscreens_010-model_faster_rcnn-bb_resnest50_fpn-lr_0.00055/26",
+        # "/home/gbiamby/proj/geoscreens/tools/output/gs_010_with_augs--geoscreens_010-model_faster_rcnn-bb_resnest50_fpn-8b23604566",
+        "/home/gbiamby/proj/geoscreens/tools/output/gs_010_extra_augs--geoscreens_010-model_faster_rcnn-bb_resnest50_fpn-024f52f6dd",
+    ]
+    for checkpoint in checkpoints:
+        args.checkpoint_path = Path(checkpoint)
+        print("Checkpoint: ", args.checkpoint_path)
+        args.save_dir = save_dir_base / args.checkpoint_path.parent.name / args.checkpoint_path.name
+        for split in ["train", "val", "test"]:
+            print("")
+            print("")
+            print("=" * 100)
+            print("=" * 100)
+            print("Processisng split: ", split)
+            generate_detections(args, split)

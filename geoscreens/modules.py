@@ -168,7 +168,11 @@ class LightModelMMDet(MMDetAdapter):
         config: DictConfig,
         metrics: List[Metric] = None,
     ):
-        super().__init__(model, metrics=metrics)
+        super().__init__(
+            model,
+            metrics=metrics,
+            metrics_keys_to_log_to_prog_bar=[("AP (IoU=0.75) area=all", "COCOMetric")],
+        )
         self.config = config
         self.learning_rate = config.optimizer.params.lr
         print("learning_rate: ", self.learning_rate)
