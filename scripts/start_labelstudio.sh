@@ -14,3 +14,5 @@ export LABEL_STUDIO_LOCAL_FILES_SERVING_ENABLED=true
 export LABEL_STUDIO_LOCAL_FILES_DOCUMENT_ROOT=/shared/gbiamby/geo/screenshots
 label-studio start --port 6008
 popd || exit
+
+# Don't forget to launch the web server to serve images from $LOCAL_FILES_DOCUMENT_ROOT

@@ -58,11 +58,7 @@ def get_raw_preds(
         #     break
         imgs = []
         for t in _batch:
-            img_path = t["data"]["image"]
-            new_file_name = img_path.replace(
-                "/data/local-files/?d=", "/shared/gbiamby/geo/screenshots/"
-            )
-            img_path = Path(new_file_name)
+            img_path = t["data"]["full_path"]
             img = np.array(Image.open(img_path))
             imgs.append(img)
         # Predict
