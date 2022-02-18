@@ -7,14 +7,16 @@ This script adds predictions from a given geoscreens detection model to a label-
 """
 import io
 import json
+import shutil
 import sys
 import zipfile
 from argparse import ArgumentParser, Namespace
 from collections import Counter
 from copy import deepcopy
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Union, cast
+from typing import Dict, List, Optional, Set, Tuple, Union, cast
 
+from label_studio_converter import Converter
 from label_studio_sdk import Client, Project
 from label_studio_sdk.data_manager import Column, Filters, Operator, Type
 from PIL import Image
@@ -40,23 +42,27 @@ def get_labelstudio_export_from_api(
         return export
 
 
-def get_labelstudio_tasks_export(args, project: Project, export_type: str = "JSON") -> List[Dict]:
-    if args.tasks_export_path:
+def get_labelstudio_tasks_export(
+    args, project: Project, export_type: str = "JSON"
+) -> Tuple[List[Dict], Path]:
+    if "tasks_export_path" in args and args.tasks_export_path:
         print("Using pre-downloaded export file: ", args.tasks_export_path)
-        return json.load(open(args.tasks_export_path, "r", encoding="utf-8"))
+        return (
+            cast(List[Dict], json.load(open(args.tasks_export_path, "r", encoding="utf-8"))),
+            cast(Path, None),
+        )
     else:
         print("Getting tasks export from label-studio API...")
         export = cast(List[Dict], get_labelstudio_export_from_api(project, export_type))
+        export_file_path = (
+            args.save_dir / f"geoscreens_{args.target_ls_version}-from_proj_id_{project.id}.json"
+        )
         json.dump(
             export,
-            open(
-                args.save_dir
-                / f"geoscreens_{args.target_ls_version}-from_proj_id_{project.id}.json",
-                "w",
-            ),
+            open(export_file_path, "w"),
             ensure_ascii=False,
         )
-        return export
+        return (export, export_file_path)
 
 
 def sync_images(args: Namespace, tasks: List[Dict]) -> List[Dict]:
@@ -280,7 +286,7 @@ def run_label_pipeline(args):
     ls.check_connection()
     project = ls.get_project(id=args.ls_project_id)
     print("Project views: ", project.get_views())
-    tasks = get_labelstudio_tasks_export(args, project)
+    tasks, _ = get_labelstudio_tasks_export(args, project)
 
     if hasattr(tasks, "__len__"):
         print(f"Exported {len(tasks)} tasks from label-studio")
@@ -473,7 +479,7 @@ def save_coco_anns(args):
 def fix_anns(ann_path: Path):
     """
     Apply some fixes to the coco annotations after they are exported from label-studio. For example,
-    the image path needs to be transformed from an URL to a path we can use in a dataloader.
+    the image paths need to be transformed from URL's to a local file system paths.
     """
     data = json.load(open(ann_path, "r", encoding="utf-8"))
     data["categories"][0]["name"] = "background"
@@ -506,22 +512,61 @@ def fix_anns(ann_path: Path):
     json.dump(data, open(Path(ann_path), "w"), indent=4, sort_keys=True, ensure_ascii=False)
 
 
+def ls_to_coco(args) -> None:
+    """
+    Download ground truth annotations from label-studio, saving them in COCO format as a new version
+    of geoscreens_{target_ds_version} dataset. This is the new version, and should be used in place
+    of `save_coco_anns()`. That older method only works for projects where label-studio manages
+    serving the images, which we can no longer use because that doesn't allow us to add images after
+    the project is set up.
+    """
+    # Add extra level of temp dir just in case user accidentally inputs a path with files that
+    # shouldn't be deleted:
+    args.save_dir = args.save_dir / "tmp"
+    if args.save_dir.exists():
+        shutil.rmtree(args.save_dir)
+    args.save_dir.mkdir(parents=True, exist_ok=True)
+    json_path = Path(args.tasks_json).resolve()
+    ls = Client(url=args.ls_url, api_key=args.ls_api_key)
+    ls.check_connection()
+    project = ls.get_project(id=args.ls_project_id)
+    _, json_path = get_labelstudio_tasks_export(args, project)
+    out_path = json_path.parent
+
+    c = Converter(project.parsed_label_config, str(json_path.parent), download_resources=False)
+    c.convert_to_coco(str(json_path.parent), str(out_path), output_image_dir="../datasets/images/")
+    # Result is in out_path / result.json, copy it to our datasets dir:
+    target_coco_path = (
+        PROJECT_ROOT
+        / f"datasets/geoscreens_{args.target_ds_version}"
+        / f"geoscreens_{args.target_ds_version}.json"
+    )
+    target_coco_path.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy(out_path / "result.json", target_coco_path)
+    fix_anns(target_coco_path)
+
+
 if __name__ == "__main__":
     parser = ArgumentParser()
     sp = parser.add_subparsers(dest="cmd")
     sp.required = True
     sp_get_anns = sp.add_parser("get_anns")
     sp_label_pipeline = sp.add_parser("label_pipeline")
+    sp_ls_to_coco = sp.add_parser("ls_to_coco")
 
     def add_common_args(_sp: ArgumentParser):
-        _sp.add_argument("--ls_project_id", type=int, default=72)
+        _sp.add_argument("--ls_project_id", type=int, default=74)
         _sp.add_argument("--ls_url", type=str, default="http://localhost:6008")
         _sp.add_argument(
             "--ls_api_key", type=str, default="3ac2082c83061cf1056d636a25bee65771792731"
         )
+        _sp.add_argument(
+            "--image_server", type=str, default="3ac2082c83061cf1056d636a25bee65771792731"
+        )
 
     add_common_args(sp_get_anns)
     add_common_args(sp_label_pipeline)
+    add_common_args(sp_ls_to_coco)
     sp_label_pipeline.add_argument(
         "--target_ls_version",
         type=str,
@@ -578,14 +623,45 @@ if __name__ == "__main__":
     )
     sp_label_pipeline.set_defaults(compute_preds=False)
 
+    # Old version of exporting anns to COCO (no longer works since we switched to using an http
+    # server to serve images instead of letting label-studio server them)
     sp_get_anns.add_argument(
         "--target_ds_version",
         type=str,
         default="010",
         help="Target dataset version (for generating coco formatted json).",
     )
+
+    # Export anns as COCO Export
+    sp_ls_to_coco.add_argument(
+        "--target_ds_version",
+        type=str,
+        default="011",
+        help="Target dataset version (for generating coco formatted json).",
+    )
+    sp_ls_to_coco.add_argument(
+        "--target_ls_version",
+        type=str,
+        default="011",
+        help="""
+            This gets appended to the exported tasks json file name. It really doesn't matter what
+            value is put here, since that is an intermediate output.
+        """,
+    )
+    sp_ls_to_coco.add_argument(
+        "--save_dir",
+        type=Path,
+        default=Path("./exports_tmp"),
+        help="""
+        Where to save the label-studio tasks export file. This is a temp folder just used for saving
+        and processing. Contents of this folder will be deleted.
+        """,
+    )
+
     args = parser.parse_args()
     if args.cmd == "get_anns":
         save_coco_anns(args)
     elif args.cmd == "label_pipeline":
         run_label_pipeline(args)
+    elif args.cmd == "ls_to_coco":
+        ls_to_coco(args)

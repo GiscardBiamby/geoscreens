@@ -232,3 +232,51 @@ page with no elements (partially loaded, no text), looks like a loading page: \*
 * <http://localhost:8093/projects/58/data?tab=96&task=232560>
 * <http://localhost:8093/projects/58/data?tab=96&task=232571>
 * <http://localhost:8093/projects/58/data?tab=96&task=233680>
+
+---
+
+## Notes
+
+Look for play_same_map_green, make sure the game_breakdown button is also annotated.
+Ex:
+
+```
+    <http://localhost:8093/projects/73/data?tab=150&task=496697>
+    YouTube video_id: -GQfpgfFqzA
+    full_path: /shared/gbiamby/geo/screenshots/screen_samples_auto/-GQfpgfFqzA/frame\_00000039.jpg
+```
+
+<!-- Incorrect annotation for points_bar:
+
+```
+full_path: /shared/gbiamby/geo/screenshots/screen_samples_auto/DZ9JablpbhQ/frame_00000055.jpg
+full_path: /shared/gbiamby/geo/screenshots/screen_samples_auto/DZ9JablpbhQ/frame_00000056.jpg
+full_path: /shared/gbiamby/geo/screenshots/screen_samples_auto/DZ9JablpbhQ/frame_00000074.jpg
+full_path: /shared/gbiamby/geo/screenshots/screen_samples_auto/DZ9JablpbhQ/frame_00000126.jpg
+full_path: /shared/gbiamby/geo/screenshots/screen_samples_auto/DZ9JablpbhQ/frame_00000128.jpg
+full_path: /shared/gbiamby/geo/screenshots/screen_samples_auto/DZ9JablpbhQ/frame_00000129.jpg
+full_path: /shared/gbiamby/geo/screenshots/screen_samples_auto/DZ9JablpbhQ/frame_00000130.jpg
+full_path: /shared/gbiamby/geo/screenshots/screen_samples_auto/DZ9JablpbhQ/frame_00000131.jpg
+full_path: /shared/gbiamby/geo/screenshots/screen_samples_auto/DZ9JablpbhQ/frame_00000132.jpg
+full_path: /shared/gbiamby/geo/screenshots/screen_samples_auto/Qm3FPspE6Nw/frame_00000091.jpg
+full_path: /shared/gbiamby/geo/screenshots/screen_samples_auto/Qm3FPspE6Nw/frame_00000111.jpg
+full_path: /shared/gbiamby/geo/screenshots/screen_samples_auto/fpe3xw9fsmg/frame_00000192.jpg
+full_path: /shared/gbiamby/geo/screenshots/screen_samples_auto/fpe3xw9fsmg/frame_00000191.jpg
+
+full_path: /shared/gbiamby/geo/screenshots/screen_samples_auto/DZ9JablpbhQ/frame_00000100.jpg
+```
+
+there are alot more, search for all the anntoations that contain text points_bar and fix them all
+To make this faster, filter by video_id. ALl the points bars within one video_id should be either points_bar or points_bar_two_bars? -->
+
+make sure anything that has show_full_results and try_another_map, also has game_finished_well_done_big_box. Example: full_path: /shared/gbiamby/geo/screenshots/screen_samples_auto/SKNOsLh_EUI/frame\_00000199.jpg
+
+go back and fix all the annotations with the word "red" (battle royale has various between round/game ui elements (at least three))
+
+---
+
+this oen needs new labels for the two buttons inside the "you won" box `full_path: /shared/gbiamby/geo/screenshots/screen_samples_auto/zrkQNiC72gA/frame_00000163.jpg`
+
+this has google maps: /home/gbiamby/proj/geoscreens/datasets/images/y93i-jEMTyE
+
+this one is not a avideo of a game: `/home/gbiamby/proj/geoscreens/datasets/images/_rHRaQTjvt8`
