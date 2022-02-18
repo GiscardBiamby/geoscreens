@@ -256,13 +256,17 @@ def other_fixes(tasks: List[Dict]) -> None:
         if "annotations" in t:
             annotations = t["annotations"]
             for ann in annotations:
-                del ann["id"]
-                del ann["ground_truth"]
-                del ann["lead_time"]
-                del ann["result_count"]
-                del ann["task"]
-                del ann["parent_prediction"]
-                del ann["parent_annotation"]
+                for k in [
+                    "id",
+                    "ground_truth",
+                    "lead_time",
+                    "result_count",
+                    "task",
+                    "parent_prediction",
+                    "parent_annotation",
+                ]:
+                    if k in ann:
+                        del ann[k]
         if "prediction" in t:
             pred = t["prediction"]
             for k, v in pred.items():
@@ -619,7 +623,9 @@ if __name__ == "__main__":
     sp_label_pipeline.add_argument(
         "--checkpoint_path",
         type=Path,
-        default=Path("/shared/gbiamby/geo/models/gs_011_extra_augs--geoscreens_011-model_faster_rcnn-bb_resnest50_fpn-3f36fb97fa"),
+        default=Path(
+            "/shared/gbiamby/geo/models/gs_011_extra_augs--geoscreens_011-model_faster_rcnn-bb_resnest50_fpn-3f36fb97fa"
+        ),
     )
     sp_label_pipeline.set_defaults(compute_preds=False)
 

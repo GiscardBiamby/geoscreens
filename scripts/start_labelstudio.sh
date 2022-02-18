@@ -5,8 +5,12 @@
 source ~/anaconda3/etc/profile.d/conda.sh
 source ../manifest
 
-conda activate "${ENV_NAME}"
-
+conda deactivate
+conda deactivate
+conda deactivate
+conda activate "${PYTHON_ENV_NAME}"
+conda info --envs
+pip list | grep label
 pushd ../
 # export LOCAL_FILES_SERVING_ENABLED=true
 # export LOCAL_FILES_DOCUMENT_ROOT=/shared/gbiamby/geo/screenshots
