@@ -79,3 +79,4 @@ notebooks/output/
 tmp/
 wandb/
 tools/exports_tmp/
+scripts/files.txt
