@@ -570,7 +570,7 @@ if __name__ == "__main__":
     sp_label_pipeline.add_argument(
         "--target_ls_version",
         type=str,
-        default="010",
+        default="011",
         help="Target label-studio project version.",
     )
     sp_label_pipeline.add_argument(
@@ -619,7 +619,7 @@ if __name__ == "__main__":
     sp_label_pipeline.add_argument(
         "--checkpoint_path",
         type=Path,
-        default=Path("/shared/gbiamby/geo/models/geoscreens_009-resnest50_fpn-with_augs"),
+        default=Path("/shared/gbiamby/geo/models/gs_011_extra_augs--geoscreens_011-model_faster_rcnn-bb_resnest50_fpn-3f36fb97fa"),
     )
     sp_label_pipeline.set_defaults(compute_preds=False)
 
