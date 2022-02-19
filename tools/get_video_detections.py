@@ -228,6 +228,21 @@ def generate_detections(args, split: str):
     (args.save_dir / split).mkdir(parents=True, exist_ok=True)
     print("SAVE_DIR: ", args.save_dir)
     meta_data = get_geoguessr_split(split)
+    # # DEBUG / HACK: Force inclusion of videos that are no longer in validation set
+    # if split == "val":
+    #     meta_data.append(
+    #         {
+    #             "id": vid
+    #             for vid in [
+    #                 "osTwgzWluVs",
+    #                 "hZWt1PYH3hI",
+    #                 "83m9ys4kxro",
+    #                 "9RQUIk1OwAY",
+    #                 "dY1RXh-43q4",
+    #                 "S5Ne5eoHxsY",
+    #             ]
+    #         }
+    #     )
     max_videos = args.max_videos
     if args.video_id:
         id_list = [args.video_id]
