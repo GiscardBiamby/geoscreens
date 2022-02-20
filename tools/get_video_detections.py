@@ -246,7 +246,7 @@ def generate_detections(args, split: str):
     max_videos = args.max_videos
     if args.video_id:
         id_list = [args.video_id]
-
+        meta_data = [{"id": args.video_id}]
     meta_data = [s for i, s in enumerate(meta_data) if s["id"] in id_list and i < max_videos]
     print("Total video count (before splitting across processes): ", len(meta_data))
     meta_data = [s for i, s in enumerate(meta_data) if (i % args.num_devices == args.device)]
