@@ -1,4 +1,9 @@
 {
+    "cSpell.words": [
+        "batchify",
+        "ICEDET",
+        "tfms"
+    ],
     "diffEditor.ignoreTrimWhitespace": false,
     "editor.codeActionsOnSave": {
         "source.fixAll": true,
@@ -18,9 +23,9 @@
         "**/XDG_CACHE_HOME": true,
         "**/__pycache__/**": true
     },
-    "python.defaultInterpreterPath": "~/anaconda3/envs/geoscreens/bin/python",
     "jupyter.allowUnauthorizedRemoteConnection": true,
     "python.analysis.typeCheckingMode": "basic",
+    "python.defaultInterpreterPath": "~/anaconda3/envs/geoscreens/bin/python",
     "python.envFile": "${workspaceFolder}/.env",
     "python.formatting.autopep8Args": [
         "--global-config=${workspaceFolder}/setup.cfg",
@@ -60,10 +65,5 @@
     ],
     "spellright.language": [
         "en_US"
-    ],
-    "cSpell.words": [
-        "batchify",
-        "ICEDET",
-        "tfms"
     ]
 }
