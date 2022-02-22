@@ -240,7 +240,7 @@ page with no elements (partially loaded, no text), looks like a loading page: \*
 Look for play_same_map_green, make sure the game_breakdown button is also annotated.
 Ex:
 
-```
+```text
     <http://localhost:8093/projects/73/data?tab=150&task=496697>
     YouTube video_id: -GQfpgfFqzA
     full_path: /shared/gbiamby/geo/screenshots/screen_samples_auto/-GQfpgfFqzA/frame\_00000039.jpg
@@ -275,7 +275,7 @@ go back and fix all the annotations with the word "red" (battle royale has vario
 
 ---
 
-this oen needs new labels for the two buttons inside the "you won" box `full_path: /shared/gbiamby/geo/screenshots/screen_samples_auto/zrkQNiC72gA/frame_00000163.jpg`
+this one needs new labels for the two buttons inside the "you won" box `full_path: /shared/gbiamby/geo/screenshots/screen_samples_auto/zrkQNiC72gA/frame_00000163.jpg`
 
 this has google maps: /home/gbiamby/proj/geoscreens/datasets/images/y93i-jEMTyE
 

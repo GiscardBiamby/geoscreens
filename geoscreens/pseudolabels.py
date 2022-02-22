@@ -1,5 +1,7 @@
 import datetime
+import json
 import uuid
+from argparse import Namespace
 from copy import deepcopy
 from pathlib import Path
 from types import ModuleType
@@ -13,8 +15,7 @@ from icevision.data import Dataset
 from omegaconf import DictConfig
 from PIL import Image
 from pytorch_lightning import LightningDataModule, Trainer, seed_everything
-from tqdm.contrib import tenumerate, tmap, tzip
-from tqdm.contrib.bells import tqdm, trange
+from tqdm.contrib.bells import tqdm
 
 from geoscreens.geo_data import GeoScreensDataModule
 from geoscreens.models import load_model_from_path
@@ -54,7 +55,7 @@ def get_raw_preds(
     for i, _batch in tqdm(
         enumerate(batchify(tasks, batch_size=1)), desc="make_predictions", total=num_batches
     ):
-        # if i >= 40:
+        # if i >= 200:
         #     break
         imgs = []
         for t in _batch:
@@ -156,12 +157,12 @@ def get_bboxes(t: Dict, config: DictConfig, class_map) -> List[Dict]:
     return results
 
 
-def compute_labelstudio_preds(args, tasks: List[Dict]):
+def compute_labelstudio_preds(args: Namespace, tasks: List[Dict]):
     config, module, model, light_model, geoscreens_data = get_model_for_inference(args)
     get_raw_preds(tasks, config, module, model, geoscreens_data)
 
     for i, t in enumerate(tqdm(tasks, total=len(tasks), desc="compute_labelstudio_preds")):
-        # if i >= 10:
+        # if i >= 100:
         #     break
         results = []
         bboxes = get_bboxes(t, config, geoscreens_data.parser.class_map)
@@ -191,3 +192,43 @@ def compute_labelstudio_preds(args, tasks: List[Dict]):
             f"{config.model_config.backbone if 'backbone' in config.model_config else ''}"
         )
         t["data"]["preds_model_dataset"] = config.dataset_config.dataset_name
+
+
+def get_preds_from_tasks_json(args: Namespace, tasks: List[Dict], tasks_with_preds: Path):
+    tasks_preds = json.load(open(tasks_with_preds, "r"))
+    preds_lookup = {
+        t["data"]["full_path"]: {"predictions": t["predictions"], "preds_raw": t["preds_raw"]}
+        for t in tasks_preds
+    }
+    # fake_result = [
+    #     {
+    #         "from_name": "label",
+    #         "id": "854d064e1c",
+    #         "image_rotation": 0,
+    #         "origin": "manual",
+    #         "original_height": 720,
+    #         "original_width": 1280,
+    #         "to_name": "image",
+    #         "type": "rectanglelabels",
+    #         "value": {
+    #             "rotation": 0,
+    #             "rectanglelabels": ["game_title"],
+    #             "width": 8.383871614933014,
+    #             "height": 4.66581556532118,
+    #             "x": 0.8659753203392029,
+    #             "y": 7.717043558756511,
+    #             "score": 0.9980950951576233,
+    #             "generated_at": "2022-02-17T09:23:49.678852Z",
+    #         },
+    #     },
+    # ]
+    for t in tasks:
+        # t["predictions"] = [{"result": fake_result}]
+        if t["data"]["full_path"] in preds_lookup:
+            preds = preds_lookup[t["data"]["full_path"]]
+            if (
+                "predictions" in preds
+                and "result" in preds["predictions"]
+                and preds["predictions"]["result"]
+            ):
+                t["predictions"] = preds["predictions"]

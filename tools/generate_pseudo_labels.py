@@ -24,6 +24,7 @@ from requests import Response
 from tqdm.contrib.bells import tqdm
 
 from geoscreens.consts import PROJECT_ROOT
+from geoscreens.pseudolabels import get_preds_from_tasks_json
 from geoscreens.utils import batchify
 
 
@@ -123,7 +124,7 @@ def append_image_metadata(args: Namespace, tasks: List):
             # sys.exit()
 
 
-def append_old_preds(args: Namespace, tasks: List[Dict]) -> None:
+def compute_preds(args: Namespace, tasks: List[Dict]) -> None:
     """
     Handle including predictions in the label pipeline. i.e., either compute new predictions, or
     convert the existing ones so they will import correctly into a new label-studio project.
@@ -132,23 +133,39 @@ def append_old_preds(args: Namespace, tasks: List[Dict]) -> None:
         print("Generating pseudolabels...")
         from geoscreens.pseudolabels import compute_labelstudio_preds
 
-        # TODO: Do we need to update this function to remove the "predictions" key from
-        # t["annotations"]?
-        compute_labelstudio_preds(args, tasks)
-        return
+        # Remove existing predictions:
+        for i, t in enumerate(tasks):
+            if "annotations" in t:
+                for a in t["annotations"]:
+                    if "prediction" in a:
+                        del a["prediction"]
+                    if "predictions" in a:
+                        del a["predictions"]
+            if "prediction" in t:
+                del t["prediction"]
+            if "predictions" in t:
+                del t["predictions"]
 
-    for i, t in enumerate(tasks):
-        result = []
-        if "annotations" in t:
-            anns_with_preds = [
-                a for a in t["annotations"] if "prediction" in a and "result" in a["prediction"]
-            ]
-            if anns_with_preds:
-                result = deepcopy(anns_with_preds[0]["prediction"]["result"])
-            for ann in t["annotations"]:
-                if "prediction" in ann:
-                    del ann["prediction"]
-        t["predictions"] = [{"result": result}]
+        compute_labelstudio_preds(args, tasks)
+        # get_preds_from_tasks_json(
+        #     args,
+        #     tasks,
+        #     Path("/shared/gbiamby/geo/exports/geoscreens_011-from_proj_id_74_with_preds.json"),
+        # )
+        return
+    # else:
+    #     for i, t in enumerate(tasks):
+    #         result = []
+    #         if "annotations" in t:
+    #             anns_with_preds = [
+    #                 a for a in t["annotations"] if "prediction" in a and "result" in a["prediction"]
+    #             ]
+    #             if anns_with_preds:
+    #                 result = deepcopy(anns_with_preds[0]["prediction"]["result"])
+    #             for ann in t["annotations"]:
+    #                 if "prediction" in ann:
+    #                     del ann["prediction"]
+    #         t["predictions"] = [{"result": result}]
 
 
 def get_by_label_name(bboxes: List[Dict], label_name: str):
@@ -289,7 +306,6 @@ def run_label_pipeline(args):
     ls = Client(url=args.ls_url, api_key=args.ls_api_key)
     ls.check_connection()
     project = ls.get_project(id=args.ls_project_id)
-    print("Project views: ", project.get_views())
     tasks, _ = get_labelstudio_tasks_export(args, project)
 
     if hasattr(tasks, "__len__"):
@@ -300,7 +316,7 @@ def run_label_pipeline(args):
     tasks = sync_images(args, tasks)
     append_image_metadata(args, tasks)
     do_label_fixes(tasks)
-    append_old_preds(args, tasks)
+    compute_preds(args, tasks)
     other_fixes(tasks)
     # sys.exit()
     # tasks = tasks[:2]
@@ -597,6 +613,8 @@ if __name__ == "__main__":
         type=Path,
         help=(
             """
+            You'll rarely have to use this unless debugging
+
             Path to tasks export json that has already been exported. If specified the script will
             use this file and bypass the step of exporting the tasks json from the label-studio API.
             Ex: /shared/gbiamby/geo/exports/geoscreens_006-from_proj_id_5.json
