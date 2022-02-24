@@ -4,6 +4,7 @@ from typing import Any, Dict, Union, cast
 
 from icevision import tfms
 from icevision.data import Dataset, DataSplitter, RandomSplitter
+from icevision.data.data_splitter import SingleSplitSplitter
 from icevision.parsers import Parser
 from icevision.parsers.coco_parser import COCOBBoxParser
 from omegaconf import DictConfig, ListConfig
@@ -15,20 +16,41 @@ class GeoScreensDataModule(LightningDataModule):
         super().__init__()
         self.dataset_config = dataset_config = config.dataset_config
         print(self.dataset_config)
+
+        #
+        ds_base_path = (Path(dataset_config.data_root) / dataset_config.dataset_name).resolve()
+        ds_path = ds_base_path / f"{dataset_config.dataset_name}.json"
+        train_ds_path = ds_base_path / f"{dataset_config.dataset_name}_train.json"
+        val_ds_path = ds_base_path / f"{dataset_config.dataset_name}_val.json"
+
         self.cache_path = (
             Path(dataset_config.data_root) / dataset_config.dataset_name / "dataset_cache.pkl"
         )
-        self.parser = COCOBBoxParser(
-            annotations_filepath=(
-                Path(dataset_config.data_root)
-                / dataset_config.dataset_name
-                / f"{dataset_config.dataset_name}.json"
-            ).resolve(),
-            img_dir=dataset_config.img_dir,
-        )
-        self.train_records, self.valid_records = self.parser.parse(
-            data_splitter=RandomSplitter([0.7, 0.3], seed=233), cache_filepath=self.cache_path
-        )
+        self.cache_path_train = ds_path.with_name(f"dataset_cache_train.pkl")
+        self.cache_path_valid = ds_path.with_name(f"dataset_cache_valid.pkl")
+
+        if train_ds_path.exists():
+            self.parser = COCOBBoxParser(
+                annotations_filepath=train_ds_path, img_dir=dataset_config.img_dir
+            )
+            self.val_parser = COCOBBoxParser(
+                annotations_filepath=val_ds_path, img_dir=dataset_config.img_dir
+            )
+            self.train_records, _ = self.parser.parse(
+                data_splitter=RandomSplitter([1.0, 0.0], seed=233),
+                cache_filepath=self.cache_path_train,
+            )
+            self.valid_records, _ = self.val_parser.parse(
+                data_splitter=RandomSplitter([1.0, 0.0], seed=233),
+                cache_filepath=self.cache_path_valid,
+            )
+        else:
+            self.parser = COCOBBoxParser(
+                annotations_filepath=ds_path, img_dir=dataset_config.img_dir
+            )
+            self.train_records, self.valid_records = self.parser.parse(
+                data_splitter=SingleSplitSplitter(), cache_filepath=self.cache_path
+            )
         print("classes: ", self.parser.class_map)
         self.id_to_class = cast(
             Dict[int, str],
@@ -75,8 +97,8 @@ class GeoScreensDataModule(LightningDataModule):
         # Datasets
         self.train_ds = Dataset(self.train_records, train_tfms)
         self.valid_ds = Dataset(self.valid_records, valid_tfms)
-        print("train_ds num_batches: ", len(self.train_ds))
-        print("valid_ds num_batches: ", len(self.valid_ds))
+        print("train_ds num_images: ", len(self.train_ds))
+        print("valid_ds num_images: ", len(self.valid_ds))
         self.ModelType = model_type
 
     def train_dataloader(self):

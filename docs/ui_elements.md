@@ -269,14 +269,14 @@ full_path: /shared/gbiamby/geo/screenshots/screen_samples_auto/DZ9JablpbhQ/frame
 there are alot more, search for all the anntoations that contain text points_bar and fix them all
 To make this faster, filter by video_id. ALl the points bars within one video_id should be either points_bar or points_bar_two_bars? -->
 
-make sure anything that has show_full_results and try_another_map, also has game_finished_well_done_big_box. Example: full_path: /shared/gbiamby/geo/screenshots/screen_samples_auto/SKNOsLh_EUI/frame\_00000199.jpg
+DONE make sure anything that has show_full_results and try_another_map, also has game_finished_well_done_big_box. Example: full_path: /shared/gbiamby/geo/screenshots/screen_samples_auto/SKNOsLh_EUI/frame\_00000199.jpg
 
-go back and fix all the annotations with the word "red" (battle royale has various between round/game ui elements (at least three))
+DONE go back and fix all the annotations with the word "red" (battle royale has various between round/game ui elements (at least three))
 
 ---
 
 this one needs new labels for the two buttons inside the "you won" box `full_path: /shared/gbiamby/geo/screenshots/screen_samples_auto/zrkQNiC72gA/frame_00000163.jpg`
 
-this has google maps: /home/gbiamby/proj/geoscreens/datasets/images/y93i-jEMTyE
+DONE this has google maps: /home/gbiamby/proj/geoscreens/datasets/images/y93i-jEMTyE
 
-this one is not a avideo of a game: `/home/gbiamby/proj/geoscreens/datasets/images/_rHRaQTjvt8`
+this one is not a a video of a game: `/home/gbiamby/proj/geoscreens/datasets/images/_rHRaQTjvt8`

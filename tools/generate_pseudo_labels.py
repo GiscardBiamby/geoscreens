@@ -16,14 +16,16 @@ from copy import deepcopy
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple, Union, cast
 
-from label_studio_converter import Converter
 from label_studio_sdk import Client, Project
 from label_studio_sdk.data_manager import Column, Filters, Operator, Type
 from PIL import Image
+from pycocotools.helpers import reindex_coco_json
 from requests import Response
 from tqdm.contrib.bells import tqdm
 
 from geoscreens.consts import PROJECT_ROOT
+from geoscreens.data.splitting import generate_train_val_splits
+from geoscreens.label_studio import Converter
 from geoscreens.pseudolabels import get_preds_from_tasks_json
 from geoscreens.utils import batchify
 
@@ -502,7 +504,6 @@ def fix_anns(ann_path: Path):
     the image paths need to be transformed from URL's to a local file system paths.
     """
     data = json.load(open(ann_path, "r", encoding="utf-8"))
-    data["categories"][0]["name"] = "background"
 
     for img in data["images"]:
         img["file_name"] = (
@@ -546,7 +547,7 @@ def ls_to_coco(args) -> None:
     if args.save_dir.exists():
         shutil.rmtree(args.save_dir)
     args.save_dir.mkdir(parents=True, exist_ok=True)
-    json_path = Path(args.tasks_json).resolve()
+    # json_path = Path(args.tasks_json).resolve()
     ls = Client(url=args.ls_url, api_key=args.ls_api_key)
     ls.check_connection()
     project = ls.get_project(id=args.ls_project_id)
@@ -564,6 +565,8 @@ def ls_to_coco(args) -> None:
     target_coco_path.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy(out_path / "result.json", target_coco_path)
     fix_anns(target_coco_path)
+    reindex_coco_json(target_coco_path)
+    generate_train_val_splits(target_coco_path, split_by="author")
 
 
 if __name__ == "__main__":
@@ -575,7 +578,7 @@ if __name__ == "__main__":
     sp_ls_to_coco = sp.add_parser("ls_to_coco")
 
     def add_common_args(_sp: ArgumentParser):
-        _sp.add_argument("--ls_project_id", type=int, default=74)
+        _sp.add_argument("--ls_project_id", type=int, default=84)
         _sp.add_argument("--ls_url", type=str, default="http://localhost:6008")
         _sp.add_argument(
             "--ls_api_key", type=str, default="3ac2082c83061cf1056d636a25bee65771792731"
