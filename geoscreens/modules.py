@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import List, Union
+from typing import List, Union, cast
 
 import torch.nn as nn
 from icevision.engines.lightning.lightning_model_adapter import LightningModelAdapter
@@ -11,6 +11,7 @@ from icevision.models.torchvision.retinanet.lightning.model_adapter import (
 )
 from icevision.models.ultralytics.yolov5.lightning.model_adapter import ModelAdapter as YoloAdapter
 from omegaconf import DictConfig
+from pycocotools.cocoeval import StatKey, StatKeyPerClass
 from torch.optim import SGD, Adam
 from torch.optim.lr_scheduler import MultiStepLR, ReduceLROnPlateau
 
@@ -231,9 +232,23 @@ class LightModelMMDet(MMDetAdapter):
                 for entry in self.metrics_keys_to_log_to_prog_bar:
                     if entry[0] == k:
                         self.log(entry[1], v, prog_bar=True)
-                    metric_key = str(k)
-                    if "StatKeyPerClass" in metric_key:
-                        _metrics[f"{metric.name}-PC/{k}"] = v
+                    if isinstance(k, StatKeyPerClass):
+                        stat_key = cast(StatKeyPerClass, k)
+                        _metrics[
+                            f"{metric.name}-PC/{stat_key.metric}/"
+                            f"iou_{stat_key.iou}/"
+                            f"area_{stat_key.area}/"
+                            f"max_dets_{stat_key.max_dets}/"
+                            f"cat_name={stat_key.name}_cat_id={stat_key.cat_id}"
+                        ] = v
+                    elif isinstance(k, StatKey):
+                        stat_key = cast(StatKey, k)
+                        _metrics[
+                            f"{metric.name}/{stat_key.metric}/"
+                            f"iou_{stat_key.iou}/"
+                            f"area_{stat_key.area}/"
+                            f"max_dets_{stat_key.max_dets}"
+                        ] = v
                     else:
                         _metrics[f"{metric.name}/{k}"] = v
 

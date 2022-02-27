@@ -14,7 +14,7 @@ from icevision import tfms
 from icevision.data import Dataset
 from omegaconf import DictConfig
 from PIL import Image
-from pytorch_lightning import LightningDataModule, Trainer, seed_everything
+from pytorch_lightning import LightningDataModule, seed_everything
 from tqdm.contrib.bells import tqdm
 
 from geoscreens.geo_data import GeoScreensDataModule

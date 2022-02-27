@@ -107,6 +107,7 @@ def train_geo(config: DictConfig) -> None:
             metric_type=COCOMetricType.bbox,
             show_pbar=True,
             class2id=geoscreens_data.parser.class_map._class2id,
+            summary_ious=[0.25, 0.5, 0.75, 0.95],
         )
     ]
     light_model = build_module(model, config, metrics=metrics)

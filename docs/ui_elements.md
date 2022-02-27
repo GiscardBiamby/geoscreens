@@ -280,3 +280,7 @@ this one needs new labels for the two buttons inside the "you won" box `full_pat
 DONE this has google maps: /home/gbiamby/proj/geoscreens/datasets/images/y93i-jEMTyE
 
 this one is not a a video of a game: `/home/gbiamby/proj/geoscreens/datasets/images/_rHRaQTjvt8`
+
+This video_id is a video of _other_ geoguessr videos playing. Should filter it out.
+
+This one is weird, the right side of the screen is cropped OtdFxVgLK_c

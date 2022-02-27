@@ -42,10 +42,14 @@ dataset_config:
   img_dir: "./datasets/images"
   img_size: 640
   # Include an extra class in num_classes for the background class (which gets added automatically)
-  num_classes: 64
+  num_classes: 78
   batch_size: ${training.batch_size}
   num_workers: ${training.num_workers}
   pin_memory: ${training.pin_memory}
+  # If true uses random train/val split. If false will attempt to use
+  # `geoscreens_###_{train||val}.json` files as the splits.
+  use_random_train_val_split: true
+  train_val_split_probs: [0.80, 0.20]
 
 training:
   distributed: True

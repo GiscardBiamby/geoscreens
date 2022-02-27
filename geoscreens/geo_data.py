@@ -29,7 +29,7 @@ class GeoScreensDataModule(LightningDataModule):
         self.cache_path_train = ds_path.with_name(f"dataset_cache_train.pkl")
         self.cache_path_valid = ds_path.with_name(f"dataset_cache_valid.pkl")
 
-        if train_ds_path.exists():
+        if not self.dataset_config.use_random_train_val_split and train_ds_path.exists():
             self.parser = COCOBBoxParser(
                 annotations_filepath=train_ds_path, img_dir=dataset_config.img_dir
             )
@@ -49,7 +49,8 @@ class GeoScreensDataModule(LightningDataModule):
                 annotations_filepath=ds_path, img_dir=dataset_config.img_dir
             )
             self.train_records, self.valid_records = self.parser.parse(
-                data_splitter=SingleSplitSplitter(), cache_filepath=self.cache_path
+                data_splitter=RandomSplitter(dataset_config.train_val_split_probs, seed=233),
+                cache_filepath=self.cache_path,
             )
         print("classes: ", self.parser.class_map)
         self.id_to_class = cast(
