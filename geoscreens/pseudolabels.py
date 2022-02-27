@@ -11,6 +11,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from icevision import tfms
+from icevision.core.class_map import ClassMap
 from icevision.data import Dataset
 from omegaconf import DictConfig
 from PIL import Image
@@ -86,18 +87,24 @@ def get_raw_preds(
             t["preds_raw"] = dets
 
 
-def get_best_pred_per_label(t):
-    # TODO: Update this to not do any aggregation for certain categories. e.g., "other" categories
-    # can appear multiple times in one UI, so we want to include those.
+def get_best_pred_per_label(t, class_map: ClassMap):
+    # "ignore" functionality: don't do any aggregation for certain categories. e.g., "other" Some
+    # categories can appear multiple times in one UI, so we want to include those.
+    ignore = {class_map.get_by_name(c) for c in ["play", "other", "challenge_btn_orange", "video"]}
+    results = []
     best = {}
     for i, (bbox, score, label_id) in enumerate(
         zip(t["preds_raw"]["bboxes"], t["preds_raw"]["scores"], t["preds_raw"]["label_ids"])
     ):
-        if label_id not in best:
-            best[label_id] = (bbox, score, label_id)
-        if score > best[label_id][1]:
-            best[label_id] = (bbox, score, label_id)
-    return best.values()
+        if label_id in ignore:
+            results.append((bbox, score, label_id))
+        else:
+            if label_id not in best:
+                best[label_id] = (bbox, score, label_id)
+            if score > best[label_id][1]:
+                best[label_id] = (bbox, score, label_id)
+    results.extend(best.values())
+    return results
 
 
 def reverse_point(x, y, width, height, curr_dim):
@@ -116,7 +123,7 @@ def reverse_point(x, y, width, height, curr_dim):
     return new_x, new_y
 
 
-def get_bboxes(t: Dict, config: DictConfig, class_map) -> List[Dict]:
+def get_bboxes(t: Dict, config: DictConfig, class_map: ClassMap) -> List[Dict]:
     """
     From t (a single task json), return list[dict], each dict containing bounding boxes. Results are
     limited to one bbox per label_id (highest confidence is used to pick the best one for each
@@ -126,7 +133,7 @@ def get_bboxes(t: Dict, config: DictConfig, class_map) -> List[Dict]:
         return
     width, height = t["data"]["width"], t["data"]["height"]
     results = []
-    for i, (bbox, score, label_id) in enumerate(get_best_pred_per_label(t)):
+    for i, (bbox, score, label_id) in enumerate(get_best_pred_per_label(t, class_map)):
         xmin, ymin = reverse_point(
             bbox["xmin"], bbox["ymin"], width, height, config.dataset_config.img_size
         )

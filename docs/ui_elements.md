@@ -284,3 +284,11 @@ this one is not a a video of a game: `/home/gbiamby/proj/geoscreens/datasets/ima
 This video_id is a video of _other_ geoguessr videos playing. Should filter it out.
 
 This one is weird, the right side of the screen is cropped OtdFxVgLK_c
+
+This user, Brendan, seems to be playing the same map multiple times, under different video_id's. Are these different videos?
+
+QGzFJKYScuI, Qm3FPspE6Nw, QP15WaN0408, PSk1Ja\_0xXQ, OtdFxVgLK_c, NIC2lyrnxLs, NB5CLD4\_m6Y,
+
+This video has nothing to do with geoguessr: ZzqhWFY4Dfs
+
+This is unique because the person switches to the /r/geoguessr subreddit during the middle of game-play: axOLK00svzQ

@@ -52,20 +52,6 @@ def get_model(args):
     return config, module, model, light_model, geoscreens_data
 
 
-def get_best_pred_per_label(t):
-    # TODO: Update this to not do any aggregation for certain categories. e.g., "other" categories
-    # can appear multiple times in one UI, so we want to include those.
-    best = {}
-    for i, (bbox, score, label_id) in enumerate(
-        zip(t["preds_raw"]["bboxes"], t["preds_raw"]["scores"], t["preds_raw"]["label_ids"])
-    ):
-        if label_id not in best:
-            best[label_id] = (bbox, score, label_id)
-        if score > best[label_id][1]:
-            best[label_id] = (bbox, score, label_id)
-    return best.values()
-
-
 def segment_video(
     config: DictConfig,
     module: ModuleType,
