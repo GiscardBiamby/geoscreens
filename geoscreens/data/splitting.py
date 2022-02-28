@@ -11,22 +11,25 @@ from tqdm.auto import tqdm
 from .metadata import get_all_metadata
 
 
-def get_images_with_metadata(coco: COCO, df_meta: pd.DataFrame):
+def get_images_with_metadata(coco: COCO, df_meta: pd.DataFrame) -> List[Dict[str, Any]]:
     """
+    Gets list of all images in the given COCO object, combined with metadata info
+    from df_meta.
+
     Returns::
 
-    (Example)
-        [
-            {
-                'file_name': 'screen_samples_auto/DZ9JablpbhQ/frame_00000012.jpg',
-                'height': 720,
-                'id': 0,
-                'width': 1280,
-                'video_id': 'DZ9JablpbhQ',
-                'author': 'Mister Blue Geoguessr',
-                'ann_count': 6
-            }, ...
-        ]
+        (Example)
+            [
+                {
+                    'file_name': 'screen_samples_auto/DZ9JablpbhQ/frame_00000012.jpg',
+                    'height': 720,
+                    'id': 0,
+                    'width': 1280,
+                    'video_id': 'DZ9JablpbhQ',
+                    'author': 'Mister Blue Geoguessr',
+                    'ann_count': 6
+                }, ...
+            ]
     """
     img_data = []
     for img in coco.dataset["images"]:
@@ -45,11 +48,11 @@ def get_images_with_metadata(coco: COCO, df_meta: pd.DataFrame):
     return img_data
 
 
-def get_metadata_df(all_metadata):
+def get_metadata_df(all_metadata) -> pd.DataFrame:
     df_meta = pd.DataFrame(all_metadata).set_index("id")
     df_meta = df_meta[~(df_meta.split == "None")].copy(deep=True)
 
-    return df_meta
+    return cast(pd.DataFrame, df_meta)
 
 
 def generate_train_val_splits(

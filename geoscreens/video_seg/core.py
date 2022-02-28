@@ -17,6 +17,7 @@ from IPython.display import Image, display
 from termcolor import colored
 from tqdm.contrib.bells import tqdm
 
+from geoscreens.data import get_all_geoguessr_split_metadata, get_all_metadata, get_metadata_df
 from geoscreens.video_seg.ground_truth import compare_to_gt, load_gt, seg_gt
 
 
@@ -438,7 +439,7 @@ ui_to_gamestates_map = OrderedDict(
 )
 
 
-def compute_segments(model: str):
+def compute_segments_qa(args, model: str):
     segments: Dict[str, List[Dict[str, Any]]] = {}
     seg_gt_new = load_gt("seg_ground_truth_009.json")
     seg_gt_new.update(seg_gt)
@@ -463,4 +464,43 @@ def compute_segments(model: str):
         apply_smoothing(df_framedets)
         end_points = get_game_state_endpoints(df_framedets, smoothing=True)
         segments[video_id] = endpoints_to_segments(end_points)
+    return segments
+
+
+def compute_segments(args, model: str):
+    df_meta = (
+        pd.DataFrame(get_all_geoguessr_split_metadata().values())
+        .rename(columns={"id": "video_id"})
+        .set_index("video_id")
+    )
+
+    segments: Dict[str, List[Dict[str, Any]]] = {}
+    dets_path = (Path(args.dets_path) / model).resolve()
+    dets_files = sorted(dets_path.glob("**/df_frame_dets*.pkl"))
+    video_ids = [d.stem.replace("df_frame_dets-video_id_", "") for d in dets_files]
+    print(f"Segmenting {len(video_ids)} videos...")
+
+    for video_id in video_ids:
+        print("video_id: ", video_id)
+        split = df_meta.loc[video_id].split
+        csv_path = Path(args.save_dir / split / f"df_seg-video_id_{video_id}.csv")
+        if csv_path.exists():
+            print("SKIP segment, csv_path exists: ", csv_path)
+            continue
+        csv_path.parent.mkdir(exist_ok=True, parents=True)
+
+        # Compute segments
+        df_framedets = load_detections(video_id, split=split, model=model)
+        df_framedets["game_state"] = df_framedets.apply(
+            lambda row: classify_frame(row, ui_to_gamestates_map), axis=1
+        )
+        apply_smoothing(df_framedets)
+        end_points = get_game_state_endpoints(df_framedets, smoothing=True)
+        segments[video_id] = endpoints_to_segments(end_points)
+
+        # Save output
+        df_seg = pd.DataFrame(segments[video_id])
+        print(f"Saving output: {csv_path}")
+        df_seg.to_csv(csv_path, header=True, index=False)
+        df_seg.to_pickle(str(csv_path.with_suffix(".pkl")))
     return segments
