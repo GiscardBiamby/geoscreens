@@ -12,6 +12,10 @@ from pytorch_lightning import LightningDataModule
 
 
 class GeoScreensDataModule(LightningDataModule):
+    """
+    A pytorch_lightning data module for geoscreens training and validation dataset.
+    """
+
     def __init__(self, config: Union[DictConfig, ListConfig], model_type: ModuleType):
         super().__init__()
         self.dataset_config = dataset_config = config.dataset_config

@@ -11,7 +11,6 @@ import shutil
 import sys
 import zipfile
 from argparse import ArgumentParser, Namespace
-from collections import Counter
 from copy import deepcopy
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple, Union, cast
@@ -25,24 +24,8 @@ from tqdm.contrib.bells import tqdm
 
 from geoscreens.consts import PROJECT_ROOT
 from geoscreens.data.splitting import generate_train_val_splits
-from geoscreens.label_studio import Converter
-from geoscreens.pseudolabels import get_preds_from_tasks_json
+from geoscreens.labelstudio import Converter, get_labelstudio_export_from_api
 from geoscreens.utils import batchify
-
-
-def get_labelstudio_export_from_api(
-    project: Project, export_type: str, download_all_tasks: str = "true"
-) -> Union[List[Dict], Response]:
-    response = project.make_request(
-        method="GET",
-        url=f"/api/projects/{project.id}/export?exportType={export_type}&download_all_tasks={download_all_tasks}",
-        timeout=500,
-    )
-    if response.headers["Content-Type"] == "application/zip":
-        return response
-    else:
-        export = response.json()
-        return export
 
 
 def get_labelstudio_tasks_export(
@@ -133,7 +116,7 @@ def compute_preds(args: Namespace, tasks: List[Dict]) -> None:
     """
     if args.compute_preds:
         print("Generating pseudolabels...")
-        from geoscreens.pseudolabels import compute_labelstudio_preds
+        from geoscreens.labelstudio.pseudolabels import compute_labelstudio_preds
 
         # Remove existing predictions:
         for i, t in enumerate(tasks):
@@ -149,25 +132,8 @@ def compute_preds(args: Namespace, tasks: List[Dict]) -> None:
                 del t["predictions"]
 
         compute_labelstudio_preds(args, tasks)
-        # get_preds_from_tasks_json(
-        #     args,
-        #     tasks,
-        #     Path("/shared/gbiamby/geo/exports/geoscreens_011-from_proj_id_74_with_preds.json"),
-        # )
+
         return
-    # else:
-    #     for i, t in enumerate(tasks):
-    #         result = []
-    #         if "annotations" in t:
-    #             anns_with_preds = [
-    #                 a for a in t["annotations"] if "prediction" in a and "result" in a["prediction"]
-    #             ]
-    #             if anns_with_preds:
-    #                 result = deepcopy(anns_with_preds[0]["prediction"]["result"])
-    #             for ann in t["annotations"]:
-    #                 if "prediction" in ann:
-    #                     del ann["prediction"]
-    #         t["predictions"] = [{"result": result}]
 
 
 def get_by_label_name(bboxes: List[Dict], label_name: str):
@@ -593,7 +559,7 @@ if __name__ == "__main__":
     sp_label_pipeline.add_argument(
         "--target_ls_version",
         type=str,
-        default="011",
+        default="012",
         help="Target label-studio project version.",
     )
     sp_label_pipeline.add_argument(
@@ -645,7 +611,8 @@ if __name__ == "__main__":
         "--checkpoint_path",
         type=Path,
         default=Path(
-            "/shared/gbiamby/geo/models/gs_011_extra_augs--geoscreens_011-model_faster_rcnn-bb_resnest50_fpn-3f36fb97fa"
+            # "/shared/gbiamby/geo/models/gs_011_extra_augs--geoscreens_011-model_faster_rcnn-bb_resnest50_fpn-3f36fb97fa"
+            "/shared/gbiamby/geo/models/gsmoreanch02_012--geoscreens_012-model_faster_rcnn-bb_resnest50_fpn-2b72cbf305"
         ),
     )
     sp_label_pipeline.set_defaults(compute_preds=False)

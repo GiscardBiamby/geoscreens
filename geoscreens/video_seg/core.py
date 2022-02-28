@@ -70,7 +70,8 @@ def load_detections(
     frame_sample_rate if you're using a different setting.
     """
     dets_path = Path(
-        f"/shared/gbiamby/geo/segment/detections/{model}/{split}/df_frame_dets-video_id_{video_id}.csv",
+        f"/shared/gbiamby/geo/segment/detections/"
+        f"{model}/{split}/df_frame_dets-video_id_{video_id}.csv",
     )
     if dets_path.suffix == ".csv":
         df = load_detections_csv(video_id, split=split, model=model)

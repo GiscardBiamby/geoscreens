@@ -98,6 +98,7 @@ def style_df_redgreen(df: pd.DataFrame, column: str):
     ).apply(style_wrong, props="color:white;background-color:red", axis=0, subset=["is_correct"])
 
 
+# Hardcoded out_of_game segments collected by Grace:
 seg_gt = {
     "AF9uezxZDeE": {
         "in_game_segs_count": 5,

@@ -3,7 +3,9 @@ import time
 from contextlib import contextmanager
 from datetime import timedelta
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, List, Union
+
+import numpy as np
 
 
 def batchify(iterable, batch_size=1):
@@ -47,7 +49,9 @@ def load_json(json_path: Path) -> Dict[str, Any]:
     return data
 
 
-def save_json(json_path: Path, data: Dict, indent: int = 4, sort_keys: bool = True) -> None:
+def save_json(
+    json_path: Union[str, Path], data: Dict, indent: int = 4, sort_keys: bool = True
+) -> None:
     with open(json_path, "w", encoding="utf-8") as f:
         json.dump(
             data,
@@ -57,3 +61,17 @@ def save_json(json_path: Path, data: Dict, indent: int = 4, sort_keys: bool = Tr
             # cls=CustomJSONEncoder,
             sort_keys=sort_keys,
         )
+
+
+def get_indices_to_sample(config, total_frames: int, fps: float) -> List[int]:
+    indices = map(
+        int,
+        np.linspace(
+            start=0.0,
+            stop=total_frames,
+            num=int(total_frames * (config.frame_sample_rate_fps / fps)),
+            retstep=False,
+            endpoint=False,
+        ),
+    )
+    return list(indices)

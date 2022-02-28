@@ -14,21 +14,7 @@ from decord import VideoReader, cpu
 from omegaconf import DictConfig, OmegaConf
 from tqdm.contrib.bells import tqdm
 
-from geoscreens.utils import load_json, timeit_context
-
-
-def get_indices_to_sample(config, total_frames: int, fps: float) -> List[int]:
-    indices = map(
-        int,
-        np.linspace(
-            start=0.0,
-            stop=total_frames,
-            num=int(total_frames * (config.frame_sample_rate_fps / fps)),
-            retstep=False,
-            endpoint=False,
-        ),
-    )
-    return list(indices)
+from geoscreens.utils import get_indices_to_sample, load_json, save_json, timeit_context
 
 
 def get_frames_generator_decord(config: DictConfig, video_path: Union[str, Path]):
@@ -81,6 +67,25 @@ def extract_frames_fake(config: DictConfig, video_path: Path, get_frames_fn: Cal
         return (video_path, False, str(ex))
 
 
+def save_frames_metadata(config: DictConfig, files):
+    frame_info = {}
+    for file in tqdm(files):
+        video_id = file.stem
+        vr = VideoReader(str(file), ctx=cpu(0))
+        sample_indices = get_indices_to_sample(config, len(vr), vr.get_avg_fps())
+        frame_info[video_id] = {
+            "video_id": video_id,
+            "total_frames": len(vr),
+            "video_fps": vr.get_avg_fps(),
+            "frame_sample_rate_fps": 4.0,
+            "num_frames_sampled": len(sample_indices),
+        }
+    save_json(
+        Path(config.video_frames_path) / "frame_meta_001.json",
+        frame_info,
+    )
+
+
 def process_videos_muli_cpu(config: DictConfig):
     # fmt: off
     id_list = set([
@@ -108,6 +113,8 @@ def process_videos_muli_cpu(config: DictConfig):
         print("")
         print("Failed videos:")
         print(df_results[~df_results.astype(bool).success])
+
+    save_frames_metadata(config, files)
 
 
 if __name__ == "__main__":

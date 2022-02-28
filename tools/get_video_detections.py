@@ -23,132 +23,29 @@ from pathlib import Path
 from types import ModuleType
 from typing import Any, Dict, List, Optional, Tuple, Union, cast
 
-import cv2
 import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
-from icevision import models, tfms
-from icevision.data import Dataset
 from omegaconf import DictConfig
-from pytorch_lightning import LightningDataModule, seed_everything
-from tqdm.contrib import tenumerate, tmap, tzip
-from tqdm.contrib.bells import tqdm, trange
+from tqdm.contrib.bells import tqdm
 
-from geoscreens.consts import PROJECT_ROOT
 from geoscreens.data.metadata import get_geoguessr_split_metadata
 from geoscreens.geo_data import GeoScreensDataModule
-from geoscreens.models import load_model_from_path
+from geoscreens.inference import GeoscreensInferenceDataset, get_detections, get_model_for_inference
+from geoscreens.utils import load_json
 
 
-def get_model(args):
-    seed_everything(42, workers=True)
-    DEVICE = torch.device(f"cuda:{args.device}")
-
-    print("Loading model to device: ", DEVICE)
-    config, module, model, light_model = load_model_from_path(args.checkpoint_path, device=DEVICE)
-    light_model.eval()
-    geoscreens_data = GeoScreensDataModule(config, module)
-    return config, module, model, light_model, geoscreens_data
-
-
-def segment_video(
-    config: DictConfig,
-    module: ModuleType,
-    model: nn.Module,
-    geoscreens_data: LightningDataModule,
-    video_path: Path,
-    output_video: bool = False,
-):
-    """
-    Params:
-        output_video: if True, saves output to video (untested, might not work yet)
-
-    Returns:
-        Dict: keys = frame index, value = a dict of detections that looks something like:
-            {
-                "label_ids": [17, 39],
-                "scores": [0.5707356929779053, 0.5458141565322876],
-                "bboxes": [
-                    {
-                        "xmin": 522.35400390625,
-                        "ymin": 177.13229370117188,
-                        "xmax": 640.0,
-                        "ymax": 362.1326599121094,
-                    },
-                    {
-                        "xmin": 537.4188232421875,
-                        "ymin": 139.51719665527344,
-                        "xmax": 635.33642578125,
-                        "ymax": 157.04588317871094,
-                    },
-                ],
-            }
-    """
-    print("Segmenting video: ", video_path)
-    cap = cv2.VideoCapture(str(video_path))
-    if not cap.isOpened():
-        print("Error opening input video: {}".format(video_path))
-
-    num_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-    fps = cap.get(cv2.CAP_PROP_FPS)
-    print(f"num_frames: {num_frames:,}")
-    seconds = round(0, 2)
-    sample_every_seconds = 1.0 / float(args.frame_sample_rate)
-    print("args.frame_sample_rate: ", args.frame_sample_rate)
-    print(f"Sampling a frame every {sample_every_seconds} seconds.")
-    infer_tfms = tfms.A.Adapter(
-        [*tfms.A.resize_and_pad(config.dataset_config.img_size), tfms.A.Normalize()]
-    )
-    frame_counter = 0
-    detections = {}
-    p_bar = tqdm(total=num_frames)
-    while cap.isOpened():
-        if args.fast_debug and frame_counter >= 60:
-            break
-        cap.set(cv2.CAP_PROP_POS_MSEC, (seconds * 1000))
-        # Capture frame-by-frame
-        ret, frame = cap.read()
-        if not ret:
-            break
-
-        raw_frames = [np.array(frame)]
-        # Predict
-        infer_ds = Dataset.from_images(
-            raw_frames, infer_tfms, class_map=geoscreens_data.parser.class_map
-        )
-        preds = module.predict(model, infer_ds, detection_threshold=0.5)
-        if preds:
-            assert len(preds) == 1, "Expected list of size 1."
-            preds = preds[0]
-            detections[frame_counter] = {
-                "label_ids": [int(l) for l in preds.detection.label_ids],
-                "scores": preds.detection.scores.tolist(),
-                "bboxes": [
-                    {
-                        "xmin": float(box.xmin),
-                        "ymin": float(box.ymin),
-                        "xmax": float(box.xmax),
-                        "ymax": float(box.ymax),
-                    }
-                    for box in preds.detection.bboxes
-                ],
-            }
-        frame_counter += 1
-        seconds = round(seconds + sample_every_seconds, 2)
-        # print(seconds, seconds * 1000)
-        p_bar.update(sample_every_seconds * fps)
-    p_bar.close()
-
-    print(frame_counter, seconds)
-    return detections
-
-
-def make_dets_df(args, cats: Dict[int, str], frame_detections: Dict) -> pd.DataFrame:
+def make_dets_df(
+    args, cats: Dict[int, str], frame_detections: Dict, frames_meta: Dict[str, Any]
+) -> pd.DataFrame:
     df_framedets = pd.DataFrame(
         [
             {
                 "frame_id": k,
+                "frame_idx": v["frame_idx"],
+                "seconds": v["seconds"],
+                "time": datetime.utcfromtimestamp(v["seconds"]).strftime("%H:%M:%S:%f"),
                 "label_ids": v["label_ids"],
                 "labels": [cats[l] for l in v["label_ids"]],
                 "labels_set": tuple(set(cats[l] for l in v["label_ids"])),
@@ -163,18 +60,11 @@ def make_dets_df(args, cats: Dict[int, str], frame_detections: Dict) -> pd.DataF
         left_on="labels_set",
         right_on="labels_set",
     )["cnt"]
-    df_framedets["seconds"] = df_framedets.frame_id.apply(
-        lambda frame_id: frame_id / args.frame_sample_rate
-    )
-    df_framedets["time"] = df_framedets.frame_id.apply(
-        lambda frame_id: datetime.utcfromtimestamp(frame_id / args.frame_sample_rate).strftime(
-            "%H:%M:%S:%f"
-        )
-    )
+
     return df_framedets
 
 
-def generate_detections(args, split: str):
+def get_video_list(args, split: str):
     # List of video_ids that are in the google docs sheet.
     # fmt: off
     id_list = set([
@@ -199,20 +89,20 @@ def generate_detections(args, split: str):
     print("SAVE_DIR: ", args.save_dir)
     meta_data = get_geoguessr_split_metadata(split)
     # # DEBUG / HACK: Force inclusion of videos that are no longer in validation set
-    # if split == "val":
-    #     meta_data.append(
-    #         {
-    #             "id": vid
-    #             for vid in [
-    #                 "osTwgzWluVs",
-    #                 "hZWt1PYH3hI",
-    #                 "83m9ys4kxro",
-    #                 "9RQUIk1OwAY",
-    #                 "dY1RXh-43q4",
-    #                 "S5Ne5eoHxsY",
-    #             ]
-    #         }
-    #     )
+    if split == "val":
+        meta_data.append(
+            {
+                "id": vid
+                for vid in [
+                    "osTwgzWluVs",
+                    "hZWt1PYH3hI",
+                    "83m9ys4kxro",
+                    "9RQUIk1OwAY",
+                    "dY1RXh-43q4",
+                    "S5Ne5eoHxsY",
+                ]
+            }
+        )
     max_videos = args.max_videos
     if args.video_id:
         id_list = [args.video_id]
@@ -221,7 +111,13 @@ def generate_detections(args, split: str):
     print("Total video count (before splitting across processes): ", len(meta_data))
     meta_data = [s for i, s in enumerate(meta_data) if (i % args.num_devices == args.device)]
     print(f"Processing {len(meta_data)} videos (after 'MOD {args.num_devices}' logic applied).")
-    config, module, model, light_model, geoscreens_data = get_model(args)
+    return meta_data
+
+
+def generate_detections(args, split: str):
+    meta_data = get_video_list(args, split)
+    config, module, model, light_model, geoscreens_data = get_model_for_inference(args)
+    frames_meta = load_json(Path(args.video_frames_path) / "frame_meta_001.json")
 
     for video_info in tqdm(meta_data, total=len(meta_data), desc=f"segment_{split}_vids"):
         video_id = video_info["id"]
@@ -232,12 +128,18 @@ def generate_detections(args, split: str):
             print("SKIP segment, csv_path exists: ", csv_path)
             continue
         with torch.no_grad():
-            frame_detections = segment_video(
-                config, module, model, geoscreens_data, args.video_dir / f"{video_id}.mp4"
+            frame_detections = get_detections(
+                args,
+                config,
+                module,
+                model,
+                geoscreens_data,
+                video_id,
+                frames_meta,
             )
-        # Note: don't use battle_royale_wait_screen for anything, it should have been labeled as
-        # backaround
-        df_frame_dets = make_dets_df(args, geoscreens_data.id_to_class, frame_detections)
+        df_frame_dets = make_dets_df(
+            args, geoscreens_data.id_to_class, frame_detections, frames_meta
+        )
         print(f"Saving output: {csv_path}")
         df_frame_dets.to_csv(csv_path, header=True, index=False)
         df_frame_dets.to_pickle(str(csv_path.with_suffix(".pkl")))
@@ -248,21 +150,23 @@ if __name__ == "__main__":
     parser.add_argument("--device", type=int, default=0)
     # parser.add_argument("--video_id", type=str, default="0")
     parser.add_argument(
-        "--video_dir",
-        type=Path,
-        default=Path("/shared/g-luo/geoguessr/videos"),
-        help="Path to raw input videos.",
-    )
-    parser.add_argument(
         "--save_dir",
         type=Path,
         default=Path("/shared/gbiamby/geo/segment/detections"),
         help="Where to save the label-studio tasks export file.",
     )
     parser.add_argument(
+        "--video_frames_path",
+        type=Path,
+        default=Path("/shared/gbiamby/geo/video_frames"),
+        help="""Path to directory containing extracted video frames.""",
+    )
+    parser.add_argument(
         "--checkpoint_path",
         type=Path,
-        default=Path("/shared/gbiamby/geo/models/geoscreens_009-resnest50_fpn-with_augs"),
+        default=Path(
+            "/shared/gbiamby/geo/models/gsmoreanch02_012--geoscreens_012-model_faster_rcnn-bb_resnest50_fpn-2b72cbf305"
+        ),
         help="Path of model checkpoint to use for predictions.",
     )
     parser.add_argument(
@@ -281,7 +185,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--max_videos",
         type=int,
-        default=100,
+        default=1000,
         help="Max number of mvideos to process for a given geoguessr train/val/test split",
     )
     parser.add_argument(
