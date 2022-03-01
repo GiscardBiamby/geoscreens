@@ -53,6 +53,7 @@ def load_detections_csv(
     )
     df = pd.read_csv(csv_path)
     df.frame_id = df.frame_id.astype(int)
+    df.frame_idx = df.frame_idx.astype(int)
     df.label_ids = df.label_ids.apply(lambda x: parse_dict(x))
     df.labels = df.labels.apply(lambda x: parse_dict(x))
     df.labels_set = df.labels_set.apply(lambda x: parse_tuple(x))
@@ -81,17 +82,6 @@ def load_detections(
         df = load_detections_csv(video_id, split=split, model=model)
     else:
         df = pickle.load(open(dets_path, "rb"))
-
-    if "frame_time" not in df.columns:
-        df["frame_time"] = df.apply(lambda x: f"{x.frame_id/frame_sample_rate:04}", axis=1)
-    if "seconds" not in df.columns:
-        df["seconds"] = df.frame_id.apply(lambda frame_id: frame_id / frame_sample_rate)
-    if "time" not in df.columns:
-        df["time"] = df.frame_id.apply(
-            lambda frame_id: datetime.utcfromtimestamp(frame_id / frame_sample_rate).strftime(
-                "%H:%M:%S:%f"
-            )
-        )
 
     def filter_dets(row):
         return tuple(set([l for l, s in zip(row.labels, row.scores) if s >= prob_thresh]))
@@ -148,16 +138,16 @@ def add_state_transition(state_transitions, row: pd.Series, from_state: str, to_
         [
             {
                 "state": from_state,
-                "frame_id": row.frame_id,
-                "end_frame_id": row.frame_id,
+                "frame_idx": row.frame_idx,
+                "end_frame_idx": row.frame_idx,
                 "end_sec": row.seconds,
                 "end_time": row.time,
             },
             {
                 "state": to_state,
-                "frame_id": row.frame_id,
-                "start_frame_id": row.frame_id,
-                "end_frame_id": None,
+                "frame_idx": row.frame_idx,
+                "start_frame_idx": row.frame_idx,
+                "end_frame_idx": None,
                 "start_sec": row.seconds,
                 "end_sec": None,
                 "start_time": row.time,
