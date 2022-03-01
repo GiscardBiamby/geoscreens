@@ -3,11 +3,11 @@ import logging
 import os
 import pickle
 import sys
-from argparse import ArgumentParser, Namespace
 from collections import Counter, OrderedDict
 from copy import deepcopy
 from datetime import datetime, timedelta
 from io import BytesIO
+from multiprocessing import Pool
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union, cast
 
@@ -18,7 +18,9 @@ from termcolor import colored
 from tqdm.contrib.bells import tqdm
 
 from geoscreens.data import get_all_geoguessr_split_metadata, get_all_metadata, get_metadata_df
-from geoscreens.video_seg.ground_truth import compare_to_gt, load_gt, seg_gt
+
+from .ground_truth import compare_to_gt, load_gt, seg_gt
+from .uirules import ui_to_gamestates_map
 
 
 def parse_tuple(s: Union[str, tuple]) -> tuple:
@@ -63,8 +65,9 @@ def load_detections_csv(
 def load_detections(
     video_id: str,
     split: str = "val",
-    model: str = "geoscreens_009-resnest50_fpn-with_augs",
+    model: str = "",
     frame_sample_rate: float = 4.0,
+    prob_thresh: float = 0.7,
 ) -> pd.DataFrame:
     """
     NOTE: This assumes the detections are using frame sample rate of 4.0 fps. Specify
@@ -89,6 +92,11 @@ def load_detections(
                 "%H:%M:%S:%f"
             )
         )
+
+    def filter_dets(row):
+        return tuple(set([l for l, s in zip(row.labels, row.scores) if s >= prob_thresh]))
+
+    df.labels_set = df.apply(filter_dets, axis=1)
     return df
 
 
@@ -118,7 +126,7 @@ def apply_smoothing(
         for i, row in df_framedets.iterrows():
             buffer.pop(0)
             buffer.append(
-                df_framedets.loc[min(int(i) + window_size, df_framedets.shape[0] - 1)].game_state
+                df_framedets.loc[min(i + window_size, df_framedets.shape[0] - 1)].game_state
             )
             if prev_state == row.game_state:
                 smoothed.append((row.game_state, 0))
@@ -161,7 +169,7 @@ def add_state_transition(state_transitions, row: pd.Series, from_state: str, to_
 
 def get_game_state_endpoints(df_framedets: pd.DataFrame, smoothing=False) -> List[Dict[str, Any]]:
     """
-    Given a DataFrame with the detections from a geoguessr video, returns list of dictionaries, each
+    Given a DataDrame with the detections from a geoguessr video, returns list of dictionaries, each
     representing either the start or end of a contiguous section of the video. The sections tracked
     are either "in_game" or "out_of_game". Out of game can be anything such as not_in_geoguessr,
     between round, end of round -- anything that isn't the user actually in the game playing with
@@ -177,6 +185,11 @@ def get_game_state_endpoints(df_framedets: pd.DataFrame, smoothing=False) -> Lis
         elif current_state == "in_game":
             if row[state_key] == "in_game":
                 continue
+            # On second thought, I don't think we want to include OOG sequences mid-game. We'd want
+            # to splice them out, so have to handle this at some other level:
+            #
+            # elif row[state_key] == "out_of_game":
+            #     continue
             else:
                 add_state_transition(state_transitions, row, "in_game", "out_of_game")
                 current_state = row[state_key]
@@ -270,175 +283,6 @@ def format_ui_to_gamestates_map(ui_to_gamestates_map):
             match_types[match_type] = [set(elements) for elements in ui_element_combos]
 
 
-ui_to_gamestates_map = OrderedDict(
-    {
-        "pre_game": {
-            "any": [
-                ["play", "left_menu_dark"],
-                ["play", "challenge_btn_orange"],
-                ["game_about_to_start_box_white", "left_menu_dark"],
-                ["battle_royale_start_menu_w_logo"],
-                ["game_about_to_start_box_white", "next_orange_btn"],
-                ["setup_round_time_limit_box"],
-                ["battle_royale_start_menu_w_logo"],
-                ["start_game"],
-                ["invite_friends"],
-                ["next_orange_btn"],
-                ["start_challenge_orange"],
-                ["start_game"],
-            ],
-            "exact": [],
-        },
-        "between_rounds": {
-            "any": [
-                ["left_menu_dark", "challenge_high_score_board"],
-                ["play_next_round", "points_bar", "did_you_enjoy_this_location"],
-                ["play_next_round", "points_bar_two_bars", "did_you_enjoy_this_location"],
-                ["btw_rounds_points_bar_blue_wide", "play_next_round"],
-                ["battle_royale_btw_rounds_green_box"],
-                ["battle_royale_btw_rounds_red_box"],
-            ],
-            "exact": [
-                ["in_game_mini_map", "status_bar", "points_bar", "game_title"],
-                ["btw_rounds_points_bar_blue_wide"],
-            ],
-        },
-        "between_round_or_game_ambiguous": {
-            "any": [
-                ["points_bar_two_bars", "did_you_enjoy_this_location", "status_bar"],
-                ["between_rounds_box_white", "did_you_enjoy_this_location", "status_bar"],
-                ["points_bar_two_bars", "status_bar"],
-                ["points_bar_two_bars", "status_bar", "game_title"],
-                ["points_bar_two_bars", "did_you_enjoy_this_location", "status_bar", "game_title"],
-                ["points_bar_two_bars", "status_bar", "share_challenge_box_white"],
-                ["points_bar_two_bars", "challenge_high_score_board", "status_bar"],
-                ["points_bar_two_bars", "status_bar", "game_title", "share_challenge_box_white"],
-                [
-                    "between_rounds_box_white",
-                    "did_you_enjoy_this_location",
-                    "status_bar",
-                    "game_title",
-                ],
-                ["points_bar", "left_menu_dark"],
-                ["points_bar", "did_you_enjoy_this_location"],
-                ["points_bar_two_bars", "did_you_enjoy_this_location"],
-                ["status_bar", "points_bar", "game_title"],
-                ["left_menu_dark"],
-                ["left_menu_dark", "status_bar", "game_title"],
-                ["left_menu_dark", "other"],
-                ["left_menu_dark", "points_bar"],
-                ["left_menu_dark", "points_bar_two_bars"],
-            ],
-            "exact": [],
-            "do_not_match": [
-                [
-                    "in_game_mini_map",
-                    "in_game_map_expanded",
-                    "guess",
-                    "guess_grey",
-                    "make_a_guess",
-                    "place_your_pin_grey",
-                    "guess_w_icon_only",
-                    "guess_expanded",
-                    "guess_grey_expanded",
-                    "make_a_guess_expanded",
-                    "place_your_pin_grey_expanded",
-                    "guess_w_icon_only_expanded",
-                ],
-            ],
-        },
-        "in_game": {
-            "any": [
-                # The ones with "in_game_mini_map" in first position will get auto-expanded:
-                ["in_game_mini_map", "guess"],
-                ["in_game_mini_map", "guess_grey"],
-                ["in_game_mini_map", "make_a_guess"],
-                ["in_game_mini_map", "place_your_pin_grey"],
-                ["in_game_mini_map", "guess_w_icon_only"],
-                # Won't get expanded:
-                # ["status_bar", "in_game_mini_map"],
-                # ["status_bar", "in_game_map_expanded"],
-                ["status_bar_purple", "in_game_mini_map"],
-                ["status_bar_purple", "in_game_map_expanded"],
-                ["game_title", "in_game_map_expanded", "status_bar", "status_bar_white"],
-                ["game_title", "in_game_mini_map", "status_bar"],
-                ["game_title", "in_game_map_expanded", "status_bar"],
-                ["game_title", "guess", "status_bar", "status_bar_white"],
-                ["game_title", "guess_grey", "status_bar", "status_bar_white"],
-                ["game_title", "make_a_guess", "status_bar", "status_bar_white"],
-                ["game_title", "place_your_pin_grey", "status_bar", "status_bar_white"],
-                ["game_title", "guess_w_icon_only", "status_bar", "status_bar_white"],
-                ["game_title", "guess_expanded", "status_bar", "status_bar_white"],
-                ["game_title", "guess_grey_expanded", "status_bar", "status_bar_white"],
-                ["game_title", "make_a_guess_expanded", "status_bar", "status_bar_white"],
-                ["game_title", "place_your_pin_grey_expanded", "status_bar", "status_bar_white"],
-                ["game_title", "guess_w_icon_only_expanded", "status_bar", "status_bar_white"],
-            ],
-            "exact": [
-                ["status_bar_white", "status_bar", "game_title"],
-                # ["game_title", "status_bar", "status_bar_white", "url"]
-                ["status_bar_white", "other", "status_bar", "game_title"],
-                ["game_title", "status_bar_white", "make_a_guess_expanded", "status_bar"],
-                ["status_bar_purple"],
-                ["game_title", "in_game_mini_map", "status_bar", "status_bar_white"],
-                ["game_title", "in_game_map_expanded", "status_bar", "status_bar_white"],
-            ],
-            # Ignore these during matching elements in the 'any' and 'exact' lists:
-            "ignore": [
-                [
-                    "between_rounds_box_white",
-                    "btw_rounds_points_bar_blue_wide",
-                    "challenge_high_score_board",
-                    "did_you_enjoy_this_location",
-                    "high_score_box",
-                    "leader_board",
-                    "left_menu_dark",
-                    "play_next_round",
-                    "play",
-                    "points_bar_two_bars",
-                    "points_bar",
-                    "show_full_results",
-                    "show_high_score",
-                    "try_another_map",
-                    "battle_royale_start_menu_w_logo",
-                    "url",
-                ]
-            ],
-            "do_not_match": [
-                ["google_mini_map", "other"],
-            ],
-        },
-        "between_games": {
-            "any": [
-                ["left_menu_dark", "challenge_high_score_board"],
-                ["points_bar", "show_high_score"],
-                ["points_bar_two_bars", "show_high_score"],
-                ["try_another_map", "points_bar_two_bars", "show_full_results"],
-                ["points_bar_two_bars", "show_full_results"],
-                ["high_score_box", "leader_board"],
-                ["battle_royale_game_over_dark_box"],
-                ["battle_royale_knocked_out_end_game_red"],
-                ["btw_rounds_points_bar_blue_wide", "game_breakdown_blue", "play_again"],
-            ],
-            "exact": [],
-        },
-        "out_of_game": {
-            "any": [
-                ["google_mini_map"],
-            ],
-            "exact": [
-                [],
-                ["other"],
-            ],
-        },
-        "unknown": {
-            "any": [],
-            "exact": [],
-        },
-    }
-)
-
-
 def compute_segments_qa(args, model: str):
     segments: Dict[str, List[Dict[str, Any]]] = {}
     seg_gt_new = load_gt("seg_ground_truth_009.json")
@@ -467,40 +311,54 @@ def compute_segments_qa(args, model: str):
     return segments
 
 
-def compute_segments(args, model: str):
+def segment_video(args, model: str, video_id: str, df_meta: pd.DataFrame):
+    print("video_id: ", video_id)
+    if video_id not in df_meta.index:
+        print(f"SKIP {video_id} - unknown split")
+        return
+    split = df_meta.loc[video_id].split
+    csv_path = Path(args.save_dir / split / f"df_seg-video_id_{video_id}.csv")
+    if csv_path.exists():
+        print("SKIP segment, csv_path exists: ", csv_path)
+        return
+    csv_path.parent.mkdir(exist_ok=True, parents=True)
+
+    # Compute segments
+    df_framedets = load_detections(video_id, split=split, model=model)
+    df_framedets["game_state"] = df_framedets.apply(
+        lambda row: classify_frame(row, ui_to_gamestates_map), axis=1
+    )
+    apply_smoothing(df_framedets)
+    end_points = get_game_state_endpoints(df_framedets, smoothing=True)
+    segments = endpoints_to_segments(end_points)
+
+    # Save output
+    df_seg = pd.DataFrame(segments)
+    print(f"Saving output: {csv_path}")
+    df_seg.to_csv(csv_path, header=True, index=False)
+    df_seg.to_pickle(str(csv_path.with_suffix(".pkl")))
+    return True
+
+
+def compute_segments(args, model: str, multi_threaded: bool = False):
     df_meta = (
         pd.DataFrame(get_all_geoguessr_split_metadata().values())
         .rename(columns={"id": "video_id"})
         .set_index("video_id")
-    )
+    )[["split"]].copy(deep=True)
 
-    segments: Dict[str, List[Dict[str, Any]]] = {}
+    # segments: Dict[str, List[Dict[str, Any]]] = {}
     dets_path = (Path(args.dets_path) / model).resolve()
     dets_files = sorted(dets_path.glob("**/df_frame_dets*.pkl"))
     video_ids = [d.stem.replace("df_frame_dets-video_id_", "") for d in dets_files]
     print(f"Segmenting {len(video_ids)} videos...")
 
-    for video_id in video_ids:
-        print("video_id: ", video_id)
-        split = df_meta.loc[video_id].split
-        csv_path = Path(args.save_dir / split / f"df_seg-video_id_{video_id}.csv")
-        if csv_path.exists():
-            print("SKIP segment, csv_path exists: ", csv_path)
-            continue
-        csv_path.parent.mkdir(exist_ok=True, parents=True)
+    if not multi_threaded:
+        for video_id in video_ids:
+            segment_video(args, model, video_id, df_meta)
+    else:
+        num_workers = 50
+        _args = ((args, model, video_id, df_meta) for i, video_id in enumerate(video_ids))
 
-        # Compute segments
-        df_framedets = load_detections(video_id, split=split, model=model)
-        df_framedets["game_state"] = df_framedets.apply(
-            lambda row: classify_frame(row, ui_to_gamestates_map), axis=1
-        )
-        apply_smoothing(df_framedets)
-        end_points = get_game_state_endpoints(df_framedets, smoothing=True)
-        segments[video_id] = endpoints_to_segments(end_points)
-
-        # Save output
-        df_seg = pd.DataFrame(segments[video_id])
-        print(f"Saving output: {csv_path}")
-        df_seg.to_csv(csv_path, header=True, index=False)
-        df_seg.to_pickle(str(csv_path.with_suffix(".pkl")))
-    return segments
+        with Pool(processes=num_workers) as pool:
+            result = pool.starmap(segment_video, _args)

@@ -6,9 +6,7 @@ from geoscreens.video_seg import compute_segments, format_ui_to_gamestates_map, 
 
 def main(args: Namespace):
     format_ui_to_gamestates_map(ui_to_gamestates_map)
-    # model = "gsmoreanch02_012--geoscreens_012-model_faster_rcnn-bb_resnest50_fpn-2b72cbf305"
-    segments = compute_segments(args, args.model)
-    # compare_to_ground_truth(segments, seg_gt)
+    segments = compute_segments(args, args.model, multi_threaded=True)
 
 
 if __name__ == "__main__":

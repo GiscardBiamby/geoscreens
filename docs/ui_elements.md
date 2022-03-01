@@ -292,3 +292,9 @@ QGzFJKYScuI, Qm3FPspE6Nw, QP15WaN0408, PSk1Ja\_0xXQ, OtdFxVgLK_c, NIC2lyrnxLs, N
 This video has nothing to do with geoguessr: ZzqhWFY4Dfs
 
 This is unique because the person switches to the /r/geoguessr subreddit during the middle of game-play: axOLK00svzQ
+
+---
+
+MOD5 checks
+
+3xm58Ccps1c - He starts  a game for a few seconds and then cancels and goes back tot he main main and then play s5 legit rounds. Our seg script counts that extra one at the beginning.
