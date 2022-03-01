@@ -95,7 +95,6 @@ def process_videos_muli_cpu(config: DictConfig):
     # fmt: on
     files = sorted(Path(config.videos_path).glob("*.mp4"))
     files = [f for f in files if f.stem in id_list]
-    # files = files[:16]
     print("Num videos: ", len(files))
 
     num_workers = config.get("num_workers", 16)
