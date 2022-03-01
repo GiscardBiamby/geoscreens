@@ -33,6 +33,12 @@ if __name__ == "__main__":
         default=Path("/shared/gbiamby/geo/segment/detections"),
         help="Where to save the segmentation outputs.",
     )
+    parser.add_argument(
+        "--force",
+        dest="force",
+        action="store_true",
+        help="Force re-compute & overwrite of segmentation, even if seg files already exist.",
+    )
     # parser.add_argument("--ls_url", type=str, default="http://localhost:6008")
     args = parser.parse_args()
     main(args)

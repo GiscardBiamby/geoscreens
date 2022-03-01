@@ -318,7 +318,7 @@ def segment_video(args, model: str, video_id: str, df_meta: pd.DataFrame):
         return
     split = df_meta.loc[video_id].split
     csv_path = Path(args.save_dir / split / f"df_seg-video_id_{video_id}.csv")
-    if csv_path.exists():
+    if csv_path.exists() and not args.force:
         print("SKIP segment, csv_path exists: ", csv_path)
         return
     csv_path.parent.mkdir(exist_ok=True, parents=True)
@@ -332,12 +332,19 @@ def segment_video(args, model: str, video_id: str, df_meta: pd.DataFrame):
     end_points = get_game_state_endpoints(df_framedets, smoothing=True)
     segments = endpoints_to_segments(end_points)
 
-    # Save output
     df_seg = pd.DataFrame(segments)
+
+    # Basic (but not perfect) error check:
+    if df_seg is None or df_seg.shape[0] == 0:
+        return {"video_id": video_id, "result": False}
+    if len(df_seg[df_seg.state == "in_game"]) % 5 != 0:
+        return {"video_id": video_id, "result": False}
+
+    # Save output
     print(f"Saving output: {csv_path}")
     df_seg.to_csv(csv_path, header=True, index=False)
     df_seg.to_pickle(str(csv_path.with_suffix(".pkl")))
-    return True
+    return {"video_id": video_id, "result": True}
 
 
 def compute_segments(args, model: str, multi_threaded: bool = False):
@@ -361,4 +368,4 @@ def compute_segments(args, model: str, multi_threaded: bool = False):
         _args = ((args, model, video_id, df_meta) for i, video_id in enumerate(video_ids))
 
         with Pool(processes=num_workers) as pool:
-            result = pool.starmap(segment_video, _args)
+            results = pool.starmap(segment_video, _args)
