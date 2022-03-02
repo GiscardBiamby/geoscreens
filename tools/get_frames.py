@@ -69,6 +69,8 @@ def extract_frames_fake(config: DictConfig, video_path: Path, get_frames_fn: Cal
 
 def save_frames_metadata(config: DictConfig, files):
     frame_info = {}
+    if (Path(config.video_frames_path) / "frame_meta_001.json").exists():
+        frame_info = load_json(Path(config.video_frames_path) / "frame_meta_001.json")
     for file in tqdm(files):
         video_id = file.stem
         vr = VideoReader(str(file), ctx=cpu(0))
@@ -81,7 +83,7 @@ def save_frames_metadata(config: DictConfig, files):
             "num_frames_sampled": len(sample_indices),
         }
     save_json(
-        Path(config.video_frames_path) / "frame_meta_001.json",
+        Path(config.video_frames_path) / "frame_meta_002.json",
         frame_info,
     )
 
@@ -94,7 +96,7 @@ def process_videos_muli_cpu(config: DictConfig):
     ])
     # fmt: on
     files = sorted(Path(config.videos_path).glob("*.mp4"))
-    files = [f for f in files if f.stem in id_list]
+    files = [f for f in files if f.stem not in id_list][:1000]
     print("Num videos: ", len(files))
 
     num_workers = config.get("num_workers", 16)

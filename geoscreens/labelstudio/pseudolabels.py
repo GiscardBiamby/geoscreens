@@ -5,7 +5,7 @@ from argparse import Namespace
 from copy import deepcopy
 from pathlib import Path
 from types import ModuleType
-from typing import Dict, List, Optional, Union, cast
+from typing import Dict, List, Optional, Tuple, Union, cast
 
 import numpy as np
 import torch
@@ -112,6 +112,42 @@ def reverse_point(x, y, width, height, curr_dim):
     y_pad = (width - height) / 2
     new_y -= y_pad
     return new_x, new_y
+
+
+def transform_box(
+    xmin: float,
+    ymin: float,
+    xmax: float,
+    ymax: float,
+    target_width: int,
+    target_height: int,
+    curr_dim=640,
+) -> Tuple[Tuple[float, float, float, float], float]:
+    """
+    Transform bbox coordinates from (curr_dim, curr_dim) pixel space to size=(width, height) pixel
+    space. assumes width is greater than height. This is used because the detector bbox coordinates
+    are in a square pixel space (config.dataset_config.img_size)**2, and we need to convert the bbox
+    coordinates back to the original image pixel space (e.g., 1280*720).
+
+    TLDR: Go from detector output (640,640) -> original image dims (img_w, img_h)
+
+    Args:
+        xmin, ymin, xmax, ymax
+
+    Returns:
+        Tuple[[xmin, ymin, xmax, ymax], area]
+    """
+    # Back to width*width:
+    new_xmin = xmin * (target_width / curr_dim)
+    new_ymin = ymin * (target_width / curr_dim)
+    new_xmax = xmax * (target_width / curr_dim)
+    new_ymax = ymax * (target_width / curr_dim)
+    # Remove vertical padding
+    y_pad = (target_width - target_height) / 2
+    new_ymin -= y_pad
+    new_ymax -= y_pad
+    new_area = (new_xmax - new_xmin + 1) * (new_ymax - new_ymin + 1)
+    return (new_xmin, new_ymin, new_xmax, new_ymax), new_area
 
 
 def get_bboxes(t: Dict, config: DictConfig, class_map: ClassMap) -> List[Dict]:

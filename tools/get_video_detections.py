@@ -55,11 +55,12 @@ def make_dets_df(
             for k, v in frame_detections.items()
         ]
     )
-    df_framedets["label_set_count"] = df_framedets.merge(
-        pd.DataFrame(df_framedets.groupby(["labels_set"]).agg(cnt=("frame_id", "count"))),
-        left_on="labels_set",
-        right_on="labels_set",
-    )["cnt"]
+    if df_framedets is not None and len(df_framedets) > 0:
+        df_framedets["label_set_count"] = df_framedets.merge(
+            pd.DataFrame(df_framedets.groupby(["labels_set"]).agg(cnt=("frame_id", "count"))),
+            left_on="labels_set",
+            right_on="labels_set",
+        )["cnt"]
 
     return df_framedets
 
@@ -103,11 +104,16 @@ def get_video_list(args, split: str):
                 ]
             }
         )
-    max_videos = args.max_videos
     if args.video_id:
         id_list = [args.video_id]
         meta_data = [{"id": args.video_id}]
-    meta_data = [s for i, s in enumerate(meta_data) if s["id"] in id_list and i < max_videos]
+    # meta_data = [s for i, s in enumerate(meta_data) if s["id"] in id_list]
+    meta_data_no_file = []
+    for m in meta_data:
+        csv_path = Path(args.save_dir / split / f"df_frame_dets-video_id_{m['id']}.csv")
+        if not csv_path.exists():
+            meta_data_no_file.append(m)
+    meta_data = meta_data_no_file[:1000]
     print("Total video count (before splitting across processes): ", len(meta_data))
     meta_data = [s for i, s in enumerate(meta_data) if (i % args.num_devices == args.device)]
     print(f"Processing {len(meta_data)} videos (after 'MOD {args.num_devices}' logic applied).")
