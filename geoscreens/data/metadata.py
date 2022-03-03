@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Optional, Union
 
 from tqdm.auto import tqdm
 
@@ -48,7 +48,7 @@ def _clean_attributes(meta):
         'format_note', 'source_preference', 'tbr', 'language', 'language_preference', 'ext', 'vcodec', 'acodec',
         'dynamic_range', 'protocol', 'video_ext', 'audio_ext', 'vbr', 'abr', 'format', 'filesize_approx', 'fulltitle', 'epoch', 'path',
         "subtitles", "filesize", "release_timestamp", "release_date", "chapters", "track", "artist", "album", "creator", "alt_title", "tags",
-        "ner", "caption", "label", "label_geocoder", "url"
+        "ner", "caption", "label", "label_geocoder", "url", "nemo_caption", "nemo_caption_entities",
     ])
     # fmt: on
     for col_name, value in list(meta.items()):
@@ -56,7 +56,13 @@ def _clean_attributes(meta):
             del meta[col_name]
 
 
-def get_all_geoguessr_split_metadata() -> Dict:
+def get_all_geoguessr_split_metadata(force_include: Optional[list[str]] = None) -> Dict:
+    """
+    Arguments:
+
+        force_include: if specified, a list of attributes from the meta data files to include in the
+        results.
+    """
     train_meta = get_geoguessr_split_metadata("train")
     val_meta = get_geoguessr_split_metadata("val")
     test_meta = get_geoguessr_split_metadata("test")
@@ -69,12 +75,15 @@ def get_all_geoguessr_split_metadata() -> Dict:
         'format_note', 'source_preference', 'tbr', 'language', 'language_preference', 'ext', 'vcodec', 'acodec',
         'dynamic_range', 'protocol', 'video_ext', 'audio_ext', 'vbr', 'abr', 'format', 'filesize_approx', 'fulltitle', 'epoch', 'path',
         "subtitles", "filesize", "release_timestamp", "release_date", "chapters", "track", "artist", "album", "creator", "alt_title", "tags",
-        "ner", "caption", "label", "label_geocoder", "url"
+        "ner", "caption", "label", "label_geocoder", "url", "nemo_caption", "nemo_caption_entities",
     ])
     # fmt: on
+    if force_include:
+        drop_list -= set(force_include)
     for video_id, video_meta in list(splits_meta.items()):
         for col_name, _ in list(video_meta.items()):
-            if col_name in drop_list or "nemo" in col_name:
+            # if col_name in drop_list or "nemo" in col_name:
+            if col_name in drop_list:
                 del video_meta[col_name]
     return splits_meta
 

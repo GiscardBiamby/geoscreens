@@ -1,6 +1,7 @@
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
 
+from geoscreens.consts import DETECTIONS_PATH, LATEST_DETECTION_MODEL_NAME, SEG_PATH
 from geoscreens.video_seg import compute_segments, format_ui_to_gamestates_map, ui_to_gamestates_map
 
 
@@ -15,22 +16,19 @@ if __name__ == "__main__":
     parser.add_argument(
         "--save_dir",
         type=Path,
-        default=Path("/shared/gbiamby/geo/segment/seg"),
+        default=SEG_PATH,
         help="Where to save the segmentation outputs.",
     )
-
     parser.add_argument(
         "--model",
         type=str,
-        default=Path(
-            "gsmoreanch02_012--geoscreens_012-model_faster_rcnn-bb_resnest50_fpn-2b72cbf305"
-        ),
-        help="Path of model checkpoint to use for predictions.",
+        default=LATEST_DETECTION_MODEL_NAME,
+        help="Segmentation will be done using detection outputs from this model.",
     )
     parser.add_argument(
         "--dets_path",
         type=Path,
-        default=Path("/shared/gbiamby/geo/segment/detections"),
+        default=DETECTIONS_PATH,
         help="Where to save the segmentation outputs.",
     )
     parser.add_argument(

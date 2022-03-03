@@ -14,6 +14,7 @@ from decord import VideoReader, cpu
 from omegaconf import DictConfig, OmegaConf
 from tqdm.contrib.bells import tqdm
 
+from geoscreens.consts import FRAMES_METADATA_PATH, VIDEO_PATH
 from geoscreens.utils import get_indices_to_sample, load_json, save_json, timeit_context
 
 
@@ -69,8 +70,8 @@ def extract_frames_fake(config: DictConfig, video_path: Path, get_frames_fn: Cal
 
 def save_frames_metadata(config: DictConfig, files):
     frame_info = {}
-    if (Path(config.video_frames_path) / "frame_meta_001.json").exists():
-        frame_info = load_json(Path(config.video_frames_path) / "frame_meta_001.json")
+    if FRAMES_METADATA_PATH.exists():
+        frame_info = load_json(FRAMES_METADATA_PATH)
     for file in tqdm(files):
         video_id = file.stem
         vr = VideoReader(str(file), ctx=cpu(0))
@@ -82,10 +83,8 @@ def save_frames_metadata(config: DictConfig, files):
             "frame_sample_rate_fps": 4.0,
             "num_frames_sampled": len(sample_indices),
         }
-    save_json(
-        Path(config.video_frames_path) / "frame_meta_002.json",
-        frame_info,
-    )
+    out_path = FRAMES_METADATA_PATH.parent / f"{FRAMES_METADATA_PATH.stem}_new.json"
+    save_json(out_path, frame_info)
 
 
 def process_videos_muli_cpu(config: DictConfig):

@@ -22,7 +22,7 @@ from pycocotools.helpers import reindex_coco_json
 from requests import Response
 from tqdm.contrib.bells import tqdm
 
-from geoscreens.consts import PROJECT_ROOT
+from geoscreens.consts import LATEST_DETECTION_MODEL_PATH, PROJECT_ROOT
 from geoscreens.data.splitting import generate_train_val_splits
 from geoscreens.labelstudio import Converter, get_labelstudio_export_from_api
 from geoscreens.utils import batchify
@@ -610,10 +610,7 @@ if __name__ == "__main__":
     sp_label_pipeline.add_argument(
         "--checkpoint_path",
         type=Path,
-        default=Path(
-            # "/shared/gbiamby/geo/models/gs_011_extra_augs--geoscreens_011-model_faster_rcnn-bb_resnest50_fpn-3f36fb97fa"
-            "/shared/gbiamby/geo/models/gsmoreanch02_012--geoscreens_012-model_faster_rcnn-bb_resnest50_fpn-2b72cbf305"
-        ),
+        default=LATEST_DETECTION_MODEL_PATH,
     )
     sp_label_pipeline.set_defaults(compute_preds=False)
 

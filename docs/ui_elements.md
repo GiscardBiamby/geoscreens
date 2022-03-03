@@ -298,3 +298,5 @@ This is unique because the person switches to the /r/geoguessr subreddit during 
 MOD5 checks
 
 3xm58Ccps1c - He starts  a game for a few seconds and then cancels and goes back tot he main main and then play s5 legit rounds. Our seg script counts that extra one at the beginning.
+
+zyZRvZohmro - he has multiple geoguessr windows open at once and appears to be playing all of them simultaneously. can we detect and filter out this case?

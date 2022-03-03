@@ -17,6 +17,7 @@ from IPython.display import Image, display
 from termcolor import colored
 from tqdm.contrib.bells import tqdm
 
+from geoscreens.consts import DETECTIONS_PATH
 from geoscreens.data import get_all_geoguessr_split_metadata, get_all_metadata, get_metadata_df
 
 from .ground_truth import compare_to_gt, load_gt, seg_gt
@@ -45,12 +46,8 @@ def parse_dict(s: str):
     return s
 
 
-def load_detections_csv(
-    video_id: str, split: str = "val", model: str = "geoscreens_009-resnest50_fpn-with_augs"
-) -> pd.DataFrame:
-    csv_path = Path(
-        f"/shared/gbiamby/geo/segment/detections/{model}/{split}/df_frame_dets-video_id_{video_id}.csv",
-    )
+def load_detections_csv(video_id: str, split: str = "val", model: str = "") -> pd.DataFrame:
+    csv_path = DETECTIONS_PATH / f"{model}/{split}/df_frame_dets-video_id_{video_id}.csv"
     df = pd.read_csv(csv_path)
     df.frame_id = df.frame_id.astype(int)
     df.frame_idx = df.frame_idx.astype(int)
@@ -74,10 +71,8 @@ def load_detections(
     NOTE: This assumes the detections are using frame sample rate of 4.0 fps. Specify
     frame_sample_rate if you're using a different setting.
     """
-    dets_path = Path(
-        f"/shared/gbiamby/geo/segment/detections/"
-        f"{model}/{split}/df_frame_dets-video_id_{video_id}.csv",
-    )
+    dets_path = DETECTIONS_PATH / f"{model}/{split}/df_frame_dets-video_id_{video_id}.csv"
+
     if dets_path.suffix == ".csv":
         df = load_detections_csv(video_id, split=split, model=model)
     else:
@@ -282,9 +277,7 @@ def compute_segments_qa(args, model: str):
     val_ids_no_detection_files = {
         val_id
         for val_id in val_ids
-        if not Path(
-            f"/shared/gbiamby/geo/segment/detections/{model}/val/df_frame_dets-video_id_{val_id}.csv"
-        ).exists()
+        if not (DETECTIONS_PATH / f"{model}/val/df_frame_dets-video_id_{val_id}.csv").exists()
     }
     print("video_ids missing detection files: ", val_ids_no_detection_files)
     val_ids = list(set(val_ids) - val_ids_no_detection_files)
@@ -301,8 +294,8 @@ def compute_segments_qa(args, model: str):
     return segments
 
 
-def segment_video(args, model: str, video_id: str, df_meta: pd.DataFrame):
-    print("video_id: ", video_id)
+def _segment_video(args, model: str, video_id: str, df_meta: pd.DataFrame):
+    # print("video_id: ", video_id)
     if video_id not in df_meta.index:
         print(f"SKIP {video_id} - unknown split")
         return
@@ -335,6 +328,15 @@ def segment_video(args, model: str, video_id: str, df_meta: pd.DataFrame):
     df_seg.to_csv(csv_path, header=True, index=False)
     df_seg.to_pickle(str(csv_path.with_suffix(".pkl")))
     return {"video_id": video_id, "result": True}
+
+
+def segment_video(args, model: str, video_id: str, df_meta: pd.DataFrame):
+    try:
+        _segment_video(args, model, video_id, df_meta)
+    except Exception as ex:
+        print(f"Error processing video_id {video_id}")
+        print(ex)
+        raise ex
 
 
 def compute_segments(args, model: str, multi_threaded: bool = False):

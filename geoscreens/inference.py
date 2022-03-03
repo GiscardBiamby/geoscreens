@@ -123,7 +123,6 @@ def get_detections(
     model: nn.Module,
     geoscreens_data: LightningDataModule,
     video_id: str,
-    frames_meta: Dict[str, Any],
 ):
     """
     Returns:

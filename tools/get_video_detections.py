@@ -12,8 +12,6 @@ The output from this script can be used for many things:
     3. Categorize the game types (drone, stadium, time challenge, darts, etc) by inspecting which UI
        elements are detected.
 """
-
-
 import json
 import sys
 from argparse import ArgumentParser
@@ -23,22 +21,21 @@ from pathlib import Path
 from types import ModuleType
 from typing import Any, Dict, List, Optional, Tuple, Union, cast
 
-import numpy as np
 import pandas as pd
-import torch
-import torch.nn as nn
 from omegaconf import DictConfig
 from tqdm.contrib.bells import tqdm
 
+from geoscreens.consts import (
+    DETECTIONS_PATH,
+    EXTRACTED_FRAMES_PATH,
+    LATEST_DETECTION_MODEL_NAME,
+    LATEST_DETECTION_MODEL_PATH,
+)
 from geoscreens.data.metadata import get_geoguessr_split_metadata
-from geoscreens.geo_data import GeoScreensDataModule
-from geoscreens.inference import GeoscreensInferenceDataset, get_detections, get_model_for_inference
-from geoscreens.utils import load_json
+from geoscreens.inference import get_detections, get_model_for_inference
 
 
-def make_dets_df(
-    args, cats: Dict[int, str], frame_detections: Dict, frames_meta: Dict[str, Any]
-) -> pd.DataFrame:
+def make_dets_df(args, cats: Dict[int, str], frame_detections: Dict) -> pd.DataFrame:
     df_framedets = pd.DataFrame(
         [
             {
@@ -104,16 +101,52 @@ def get_video_list(args, split: str):
                 ]
             }
         )
+    # # /DEBUG / HACK
+
     if args.video_id:
         id_list = [args.video_id]
         meta_data = [{"id": args.video_id}]
+
     # meta_data = [s for i, s in enumerate(meta_data) if s["id"] in id_list]
-    meta_data_no_file = []
+
+    remove_list = []
+    # Only process ones that have frames extracted:
+    frames_extracted = set(
+        [
+            str(p.stem.replace("df_frame_dets-video_id_", ""))
+            for p in sorted(EXTRACTED_FRAMES_PATH.glob("*/"))
+        ]
+    )
+    remove_list.extend([m["id"] for m in meta_data if m["id"] not in frames_extracted])
+
+    # Ignore videos that already have detection results saved:
     for m in meta_data:
         csv_path = Path(args.save_dir / split / f"df_frame_dets-video_id_{m['id']}.csv")
-        if not csv_path.exists():
-            meta_data_no_file.append(m)
-    meta_data = meta_data_no_file[:1000]
+        if csv_path.exists():
+            remove_list.append(m["id"])
+
+    meta_data = [m for m in meta_data if m["id"] not in set(remove_list)]
+    # meta_data = meta_filtered[:1000]
+
+    # # DEBUG: force process to specific video_ids:
+    # id_list = [
+    #     "13Jsfk8ugAI",
+    #     "2BHIJPTyyzU",
+    #     "3DDY8YNkTMU",
+    #     "4n0Gsfyr3hw",
+    #     "8Myg-5uTdNI",
+    #     "9hhgfYLekpE",
+    #     "AjL9rWiyC6Y",
+    #     "AozrD3v-guo",
+    #     "BXcWb3ecouI",
+    #     "CtxmOkIYi1o",
+    #     "D7uke1c8kDk",
+    #     "DGiebsF45XY",
+    #     "pF9OA332DPk",
+    # ]
+    # meta_data = [s for s in meta_data if s["id"] in id_list]
+    # # /DEBUG
+
     print("Total video count (before splitting across processes): ", len(meta_data))
     meta_data = [s for i, s in enumerate(meta_data) if (i % args.num_devices == args.device)]
     print(f"Processing {len(meta_data)} videos (after 'MOD {args.num_devices}' logic applied).")
@@ -123,15 +156,17 @@ def get_video_list(args, split: str):
 def generate_detections(args, split: str):
     meta_data = get_video_list(args, split)
     config, module, model, light_model, geoscreens_data = get_model_for_inference(args)
-    frames_meta = load_json(Path(args.video_frames_path) / "frame_meta_001.json")
+    # frames_meta = load_json(Path(args.video_frames_path) / "frame_meta_002.json")
 
-    for video_info in tqdm(meta_data, total=len(meta_data), desc=f"segment_{split}_vids"):
+    for video_info in tqdm(
+        meta_data, total=len(meta_data), desc=f"generate_detections_{split}_vids"
+    ):
         video_id = video_info["id"]
         print("")
-        print(f"Segmenting video_id: {video_id}, split: {split}.")
+        print(f"Detecting UI elems for video_id: {video_id}, split: {split}.")
         csv_path = Path(args.save_dir / split / f"df_frame_dets-video_id_{video_id}.csv")
         if csv_path.exists() and not args.video_id:
-            print("SKIP segment, csv_path exists: ", csv_path)
+            print("SKIP detection, csv_path exists: ", csv_path)
             continue
         with torch.no_grad():
             frame_detections = get_detections(
@@ -141,11 +176,8 @@ def generate_detections(args, split: str):
                 model,
                 geoscreens_data,
                 video_id,
-                frames_meta,
             )
-        df_frame_dets = make_dets_df(
-            args, geoscreens_data.id_to_class, frame_detections, frames_meta
-        )
+        df_frame_dets = make_dets_df(args, geoscreens_data.id_to_class, frame_detections)
         print(f"Saving output: {csv_path}")
         df_frame_dets.to_csv(csv_path, header=True, index=False)
         df_frame_dets.to_pickle(str(csv_path.with_suffix(".pkl")))
@@ -158,21 +190,19 @@ if __name__ == "__main__":
     parser.add_argument(
         "--save_dir",
         type=Path,
-        default=Path("/shared/gbiamby/geo/segment/detections"),
-        help="Where to save the label-studio tasks export file.",
+        default=DETECTIONS_PATH,
+        help="Where to save the detection outputs.",
     )
     parser.add_argument(
         "--video_frames_path",
         type=Path,
-        default=Path("/shared/gbiamby/geo/video_frames"),
+        default=EXTRACTED_FRAMES_PATH,
         help="""Path to directory containing extracted video frames.""",
     )
     parser.add_argument(
         "--checkpoint_path",
         type=Path,
-        default=Path(
-            "/shared/gbiamby/geo/models/gsmoreanch02_012--geoscreens_012-model_faster_rcnn-bb_resnest50_fpn-2b72cbf305"
-        ),
+        default=LATEST_DETECTION_MODEL_PATH,
         help="Path of model checkpoint to use for predictions.",
     )
     parser.add_argument(
