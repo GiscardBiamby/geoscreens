@@ -10,3 +10,10 @@ LATEST_DETECTION_MODEL_NAME = (
 )
 LATEST_DETECTION_MODEL_PATH = Path(f"/shared/gbiamby/geo/models/{LATEST_DETECTION_MODEL_NAME}")
 FRAMES_METADATA_PATH = EXTRACTED_FRAMES_PATH / "frame_meta_002.json"
+DATASET_VERSION = "012"
+DATASET_PATH = (
+    PROJECT_ROOT
+    / "datasets"
+    / f"geoscreens_{DATASET_VERSION}"
+    / f"geoscreens_{DATASET_VERSION}.json"
+)

@@ -80,3 +80,4 @@ tmp/
 wandb/
 tools/exports_tmp/
 scripts/files.txt
+seg_log*

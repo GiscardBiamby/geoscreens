@@ -2,6 +2,8 @@ from .metadata import (
     get_all_geoguessr_split_metadata,
     get_all_metadata,
     get_geoguessr_split_metadata,
+    load_detections,
+    load_detections_csv,
     load_metadata,
 )
 from .splitting import (
@@ -20,4 +22,6 @@ __all__ = [
     "get_metadata_df",
     "generate_train_val_splits",
     "generate_coco_split",
+    "load_detections",
+    "load_detections_csv",
 ]

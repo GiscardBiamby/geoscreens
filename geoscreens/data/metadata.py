@@ -1,8 +1,12 @@
 import json
+import pickle
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
+import pandas as pd
 from tqdm.auto import tqdm
+
+from geoscreens.consts import DETECTIONS_PATH
 
 from ..consts import VIDEO_PATH
 
@@ -111,3 +115,64 @@ def get_all_metadata() -> List[Dict[str, Any]]:
         _clean_attributes(meta)
 
     return all_metadata
+
+
+def parse_tuple(s: Union[str, tuple]) -> tuple:
+    """Helper for load_detections_csv, to parse string column into column of Tuples."""
+    if isinstance(s, str):
+        result = s.replace("(", "[").replace(")", "]")
+        result = result.replace("'", '"').strip()
+        result = result.replace(",]", "]")
+        if result:
+            # print(result)
+            return tuple(sorted((json.loads(result))))
+        else:
+            return tuple()
+    else:
+        return s
+
+
+def parse_dict(s: str):
+    """Helper for load_detections_csv, to parse string column into Dict."""
+    if isinstance(s, str):
+        return json.loads(s.replace("'", '"'))
+    return s
+
+
+def load_detections_csv(video_id: str, split: str = "val", model: str = "") -> pd.DataFrame:
+    csv_path = DETECTIONS_PATH / f"{model}/{split}/df_frame_dets-video_id_{video_id}.csv"
+    df = pd.read_csv(csv_path)
+    df.frame_id = df.frame_id.astype(int)
+    df.frame_idx = df.frame_idx.astype(int)
+    df.label_ids = df.label_ids.apply(lambda x: parse_dict(x))
+    df.labels = df.labels.apply(lambda x: parse_dict(x))
+    df.labels_set = df.labels_set.apply(lambda x: parse_tuple(x))
+    df.scores = df.scores.apply(lambda x: parse_dict(x))
+    df.bboxes = df.bboxes.apply(lambda x: parse_dict(x))
+
+    return df
+
+
+def load_detections(
+    video_id: str,
+    split: str = "val",
+    model: str = "",
+    frame_sample_rate: float = 4.0,
+    prob_thresh: float = 0.7,
+) -> pd.DataFrame:
+    """
+    NOTE: This assumes the detections are using frame sample rate of 4.0 fps. Specify
+    frame_sample_rate if you're using a different setting.
+    """
+    dets_path = DETECTIONS_PATH / f"{model}/{split}/df_frame_dets-video_id_{video_id}.pkl"
+
+    if dets_path.suffix == ".csv":
+        df = load_detections_csv(video_id, split=split, model=model)
+    else:
+        df = pickle.load(open(dets_path, "rb"))
+
+    def filter_dets(row):
+        return tuple(set([l for l, s in zip(row.labels, row.scores) if s >= prob_thresh]))
+
+    df.labels_set = df.apply(filter_dets, axis=1)
+    return df

@@ -22,6 +22,7 @@ from types import ModuleType
 from typing import Any, Dict, List, Optional, Tuple, Union, cast
 
 import pandas as pd
+import torch
 from omegaconf import DictConfig
 from tqdm.contrib.bells import tqdm
 
@@ -168,19 +169,22 @@ def generate_detections(args, split: str):
         if csv_path.exists() and not args.video_id:
             print("SKIP detection, csv_path exists: ", csv_path)
             continue
-        with torch.no_grad():
-            frame_detections = get_detections(
-                args,
-                config,
-                module,
-                model,
-                geoscreens_data,
-                video_id,
-            )
-        df_frame_dets = make_dets_df(args, geoscreens_data.id_to_class, frame_detections)
-        print(f"Saving output: {csv_path}")
-        df_frame_dets.to_csv(csv_path, header=True, index=False)
-        df_frame_dets.to_pickle(str(csv_path.with_suffix(".pkl")))
+        try:
+            with torch.no_grad():
+                frame_detections = get_detections(
+                    args,
+                    config,
+                    module,
+                    model,
+                    geoscreens_data,
+                    video_id,
+                )
+            df_frame_dets = make_dets_df(args, geoscreens_data.id_to_class, frame_detections)
+            print(f"Saving output: {csv_path}")
+            df_frame_dets.to_csv(csv_path, header=True, index=False)
+            df_frame_dets.to_pickle(str(csv_path.with_suffix(".pkl")))
+        except Exception as ex:
+            print(ex)
 
 
 if __name__ == "__main__":

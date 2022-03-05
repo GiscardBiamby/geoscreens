@@ -1,8 +1,8 @@
 import json
 import logging
 import os
-import pickle
 import sys
+import time
 from collections import Counter, OrderedDict
 from copy import deepcopy
 from datetime import datetime, timedelta
@@ -18,71 +18,16 @@ from termcolor import colored
 from tqdm.contrib.bells import tqdm
 
 from geoscreens.consts import DETECTIONS_PATH
-from geoscreens.data import get_all_geoguessr_split_metadata, get_all_metadata, get_metadata_df
+from geoscreens.data import (
+    get_all_geoguessr_split_metadata,
+    get_all_metadata,
+    get_metadata_df,
+    load_detections,
+)
+from geoscreens.utils import save_json
 
 from .ground_truth import compare_to_gt, load_gt, seg_gt
 from .uirules import ui_to_gamestates_map
-
-
-def parse_tuple(s: Union[str, tuple]) -> tuple:
-    """Helper for load_detections_csv, to parse string column into column of Tuples."""
-    if isinstance(s, str):
-        result = s.replace("(", "[").replace(")", "]")
-        result = result.replace("'", '"').strip()
-        result = result.replace(",]", "]")
-        if result:
-            # print(result)
-            return tuple(sorted((json.loads(result))))
-        else:
-            return tuple()
-    else:
-        return s
-
-
-def parse_dict(s: str):
-    """Helper for load_detections_csv, to parse string column into Dict."""
-    if isinstance(s, str):
-        return json.loads(s.replace("'", '"'))
-    return s
-
-
-def load_detections_csv(video_id: str, split: str = "val", model: str = "") -> pd.DataFrame:
-    csv_path = DETECTIONS_PATH / f"{model}/{split}/df_frame_dets-video_id_{video_id}.csv"
-    df = pd.read_csv(csv_path)
-    df.frame_id = df.frame_id.astype(int)
-    df.frame_idx = df.frame_idx.astype(int)
-    df.label_ids = df.label_ids.apply(lambda x: parse_dict(x))
-    df.labels = df.labels.apply(lambda x: parse_dict(x))
-    df.labels_set = df.labels_set.apply(lambda x: parse_tuple(x))
-    df.scores = df.scores.apply(lambda x: parse_dict(x))
-    df.bboxes = df.bboxes.apply(lambda x: parse_dict(x))
-
-    return df
-
-
-def load_detections(
-    video_id: str,
-    split: str = "val",
-    model: str = "",
-    frame_sample_rate: float = 4.0,
-    prob_thresh: float = 0.7,
-) -> pd.DataFrame:
-    """
-    NOTE: This assumes the detections are using frame sample rate of 4.0 fps. Specify
-    frame_sample_rate if you're using a different setting.
-    """
-    dets_path = DETECTIONS_PATH / f"{model}/{split}/df_frame_dets-video_id_{video_id}.csv"
-
-    if dets_path.suffix == ".csv":
-        df = load_detections_csv(video_id, split=split, model=model)
-    else:
-        df = pickle.load(open(dets_path, "rb"))
-
-    def filter_dets(row):
-        return tuple(set([l for l, s in zip(row.labels, row.scores) if s >= prob_thresh]))
-
-    df.labels_set = df.apply(filter_dets, axis=1)
-    return df
 
 
 def apply_smoothing(
@@ -298,12 +243,12 @@ def _segment_video(args, model: str, video_id: str, df_meta: pd.DataFrame):
     # print("video_id: ", video_id)
     if video_id not in df_meta.index:
         print(f"SKIP {video_id} - unknown split")
-        return
+        return {"video_id": video_id, "result": True, "msg": "Skipped, no metadata found."}
     split = df_meta.loc[video_id].split
     csv_path = Path(args.save_dir / split / f"df_seg-video_id_{video_id}.csv")
     if csv_path.exists() and not args.force:
         print("SKIP segment, csv_path exists: ", csv_path)
-        return
+        return {"video_id": video_id, "result": True, "msg": "Skipped, file exists."}
     csv_path.parent.mkdir(exist_ok=True, parents=True)
 
     # Compute segments
@@ -319,9 +264,22 @@ def _segment_video(args, model: str, video_id: str, df_meta: pd.DataFrame):
 
     # Basic (but not perfect) error check:
     if df_seg is None or df_seg.shape[0] == 0:
-        return {"video_id": video_id, "result": False}
+        return {
+            "video_id": video_id,
+            "result": False,
+            "msg": "No rounds found.",
+            "details": (
+                f"(df_seg is None: {df_seg is None}, "
+                f"df_seg.shape: {df_seg.shape if df_seg is not None else 'None'}"
+            ),
+        }
     if len(df_seg[df_seg.state == "in_game"]) % 5 != 0:
-        return {"video_id": video_id, "result": False}
+        return {
+            "video_id": video_id,
+            "result": False,
+            "msg": "MOD 5 violation.",
+            "details": f"(got {len(df_seg[df_seg.state == 'in_game']) } rounds)",
+        }
 
     # Save output
     print(f"Saving output: {csv_path}")
@@ -332,14 +290,22 @@ def _segment_video(args, model: str, video_id: str, df_meta: pd.DataFrame):
 
 def segment_video(args, model: str, video_id: str, df_meta: pd.DataFrame):
     try:
-        _segment_video(args, model, video_id, df_meta)
+        return _segment_video(args, model, video_id, df_meta)
     except Exception as ex:
         print(f"Error processing video_id {video_id}")
         print(ex)
-        raise ex
+        return {"video_id": video_id, "result": False, "msg": str(type(ex)), "details": str(ex)}
 
 
 def compute_segments(args, model: str, multi_threaded: bool = False):
+    """
+    Example to inspect results after running::
+
+        segs = load_json("/home/gbiamby/proj/geoscreens/tools/seg_log-20220304-211620.json")["results"]
+        df_segs = pd.DataFrame([s for s in segs if s is not None])
+        df_segs[~df_segs.result]
+        df_segs.groupby("msg").agg(total=("video_id", "count"))
+    """
     df_meta = (
         pd.DataFrame(get_all_geoguessr_split_metadata().values())
         .rename(columns={"id": "video_id"})
@@ -352,12 +318,15 @@ def compute_segments(args, model: str, multi_threaded: bool = False):
     video_ids = [d.stem.replace("df_frame_dets-video_id_", "") for d in dets_files]
     print(f"Segmenting {len(video_ids)} videos...")
 
+    results = []
     if not multi_threaded:
         for video_id in video_ids:
-            segment_video(args, model, video_id, df_meta)
+            results.append(segment_video(args, model, video_id, df_meta))
     else:
         num_workers = 50
         _args = ((args, model, video_id, df_meta) for i, video_id in enumerate(video_ids))
 
         with Pool(processes=num_workers) as pool:
             results = pool.starmap(segment_video, _args)
+    timestr = time.strftime("%Y%m%d-%H%M%S")
+    save_json(f"./seg_log-{timestr}.json", {"results": results})
