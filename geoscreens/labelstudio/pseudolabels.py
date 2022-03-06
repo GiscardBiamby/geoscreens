@@ -12,19 +12,16 @@ import torch
 import torch.nn as nn
 from icevision import tfms
 from icevision.core.class_map import ClassMap
-from icevision.data import Dataset
 from omegaconf import DictConfig
-from PIL import Image
 from pytorch_lightning import LightningDataModule, seed_everything
 from tqdm.contrib.bells import tqdm
 
 from geoscreens.geo_data import GeoScreensDataModule
-from geoscreens.inference import get_model_for_inference
-from geoscreens.utils import batchify
+from geoscreens.inference import GeoscreensInferenceFromTaskListDataset, get_model_for_inference
 
 
-# TODO: Update this to use get_detections() and GeoscreensInferenceDataset
 def get_raw_preds(
+    args: Namespace,
     tasks: List[Dict],
     config: DictConfig,
     module: ModuleType,
@@ -38,44 +35,33 @@ def get_raw_preds(
     infer_tfms = tfms.A.Adapter(
         [*tfms.A.resize_and_pad(config.dataset_config.img_size), tfms.A.Normalize()]
     )
+    infer_ds = GeoscreensInferenceFromTaskListDataset(
+        tasks, geoscreens_data.parser.class_map, infer_tfms
+    )
+    infer_dl = module.infer_dl(infer_ds, batch_size=8, shuffle=False, num_workers=16)
+    with torch.no_grad():
+        preds = module.predict_from_dl(model, infer_dl, detection_threshold=0.5)
 
-    # Weird but batch_size of 1 is the fastest here. Maybe because there is no data loader with
-    # threading to feed the GPU? If time, look intro the other prediction methods (as alternatives
-    # to module.build_infer_batch). Maybe create a dataloader over all the images.
-    batch_size = 1
-    num_batches = (len(tasks) // batch_size) + (1 if (len(tasks) % batch_size) > 0 else 0)
-    for i, _batch in tqdm(
-        enumerate(batchify(tasks, batch_size=1)), desc="make_predictions", total=num_batches
-    ):
+    for i, (t, pred) in enumerate(zip(tasks, preds)):
         # if i >= 200:
         #     break
-        imgs = []
-        for t in _batch:
-            img_path = t["data"]["full_path"]
-            img = np.array(Image.open(img_path))
-            imgs.append(img)
-        # Predict
-        infer_ds = Dataset.from_images(imgs, infer_tfms, class_map=geoscreens_data.parser.class_map)
-        batch, samples = module.build_infer_batch(infer_ds)
-        preds = module.predict(model, infer_ds, detection_threshold=0.5)
-        for t, pred in zip(_batch, preds):
-            if not (pred and hasattr(pred, "detection")):
-                continue
-            dets = pred.detection
-            dets = {
-                "label_ids": [int(l) for l in dets.label_ids],
-                "scores": dets.scores.tolist(),
-                "bboxes": [
-                    {
-                        "xmin": float(box.xmin),
-                        "ymin": float(box.ymin),
-                        "xmax": float(box.xmax),
-                        "ymax": float(box.ymax),
-                    }
-                    for box in dets.bboxes
-                ],
-            }
-            t["preds_raw"] = dets
+        if not (pred and hasattr(pred, "detection")):
+            continue
+        dets = pred.detection
+        dets = {
+            "label_ids": [int(l) for l in dets.label_ids],
+            "scores": dets.scores.tolist(),
+            "bboxes": [
+                {
+                    "xmin": float(box.xmin),
+                    "ymin": float(box.ymin),
+                    "xmax": float(box.xmax),
+                    "ymax": float(box.ymax),
+                }
+                for box in dets.bboxes
+            ],
+        }
+        t["preds_raw"] = dets
 
 
 def get_best_pred_per_label(t, class_map: ClassMap):
@@ -193,7 +179,7 @@ def get_bboxes(t: Dict, config: DictConfig, class_map: ClassMap) -> List[Dict]:
 
 def compute_labelstudio_preds(args: Namespace, tasks: List[Dict]):
     config, module, model, light_model, geoscreens_data = get_model_for_inference(args)
-    get_raw_preds(tasks, config, module, model, geoscreens_data)
+    get_raw_preds(args, tasks, config, module, model, geoscreens_data)
 
     for i, t in enumerate(tqdm(tasks, total=len(tasks), desc="compute_labelstudio_preds")):
         # if i >= 100:

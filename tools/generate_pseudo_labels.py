@@ -491,7 +491,7 @@ def fix_anns(ann_path: Path):
     data["categories"] = [c for c in data["categories"] if c["id"] not in exclude_cat_ids]
     filtered_cat_length = len(data["categories"])
     print(
-        f"Filtered categories. Origina len: {original_cat_length}, New len: {filtered_cat_length}"
+        f"Filtered categories. Original len: {original_cat_length}, New len: {filtered_cat_length}"
     )
     # icevision is weird and instead of remapping the category_id's it fills them in with `None``,
     # so we have to take the max of the cat_id instead of the cardinality:
@@ -559,7 +559,7 @@ if __name__ == "__main__":
     sp_label_pipeline.add_argument(
         "--target_ls_version",
         type=str,
-        default="012",
+        default="013",
         help="Target label-studio project version.",
     )
     sp_label_pipeline.add_argument(

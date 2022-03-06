@@ -116,6 +116,69 @@ class GeoscreensInferenceDataset(object):
         )
 
 
+class GeoscreensInferenceFromTaskListDataset(object):
+    """
+    Only usable for inference.
+
+    Provides a dataset over tasks object, which is a list of Dict's that looks like::
+
+        tasks = [
+            {
+                "id": ..., "data": {
+                    "full_path": "/path/to/img.jpg", ...
+                },
+                ...
+            }
+        ]
+
+    If no video_id specified, the dataset will loop over all <video_id> subfolders and include all
+    frames in each.
+    """
+
+    def __init__(
+        self,
+        _tasks: list[dict],
+        class_map: ClassMap,
+        tfm: Optional[Transform] = None,
+    ):
+        self.tasks = _tasks
+        self.tfm = tfm
+        self.class_map = class_map
+        self.frames = []
+        record_id: int = 0
+        for t in _tasks:
+            img_path = Path(t["data"]["full_path"])
+            record = BaseRecord((ImageRecordComponent(),))
+            record.set_record_id(record_id)
+            record.add_component(ClassMapRecordComponent(task=tasks.detection))
+            if class_map is not None:
+                record.detection.set_class_map(class_map)
+            self.frames.append(
+                {
+                    "file_path": str(img_path),
+                    "record": record,
+                }
+            )
+            record_id += 1
+
+    def __len__(self):
+        return len(self.frames)
+
+    def __getitem__(self, i: int):
+        meta = self.frames[i]
+        record = meta["record"]
+        img = np.array(Image.open(str(meta["file_path"])))
+        record.set_img(img)
+        record.load()
+        if self.tfm is not None:
+            record = self.tfm(record)
+
+        return record
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__}, " f"len: {len(self.frames)}>"
+
+
 def get_detections(
     args,
     config: DictConfig,
