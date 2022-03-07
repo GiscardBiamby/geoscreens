@@ -544,7 +544,7 @@ if __name__ == "__main__":
     sp_ls_to_coco = sp.add_parser("ls_to_coco")
 
     def add_common_args(_sp: ArgumentParser):
-        _sp.add_argument("--ls_project_id", type=int, default=84)
+        _sp.add_argument("--ls_project_id", type=int, default=86)
         _sp.add_argument("--ls_url", type=str, default="http://localhost:6008")
         _sp.add_argument(
             "--ls_api_key", type=str, default="3ac2082c83061cf1056d636a25bee65771792731"
@@ -559,7 +559,7 @@ if __name__ == "__main__":
     sp_label_pipeline.add_argument(
         "--target_ls_version",
         type=str,
-        default="013",
+        default="014",
         help="Target label-studio project version.",
     )
     sp_label_pipeline.add_argument(
@@ -619,7 +619,7 @@ if __name__ == "__main__":
     sp_get_anns.add_argument(
         "--target_ds_version",
         type=str,
-        default="010",
+        default="014",
         help="Target dataset version (for generating coco formatted json).",
     )
 
@@ -627,13 +627,13 @@ if __name__ == "__main__":
     sp_ls_to_coco.add_argument(
         "--target_ds_version",
         type=str,
-        default="011",
+        default="014",
         help="Target dataset version (for generating coco formatted json).",
     )
     sp_ls_to_coco.add_argument(
         "--target_ls_version",
         type=str,
-        default="011",
+        default="014",
         help="""
             This gets appended to the exported tasks json file name. It really doesn't matter what
             value is put here, since that is an intermediate output.

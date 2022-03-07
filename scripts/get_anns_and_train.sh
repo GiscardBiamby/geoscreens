@@ -4,18 +4,18 @@ source ~/anaconda3/etc/profile.d/conda.sh
 source ../manifest
 conda activate "${PYTHON_ENV_NAME}"
 
-TARGET_DATASET_VERSION="013"
+TARGET_DATASET_VERSION="014"
 
 pushd ../tools || exit
 
-# python generate_pseudo_labels.py ls_to_coco \
-#     --target_ds_version "${TARGET_DATASET_VERSION}" \
-#     --ls_project_id 84
+python generate_pseudo_labels.py ls_to_coco \
+    --target_ds_version "${TARGET_DATASET_VERSION}" \
+    --ls_project_id 86
 
-# Clear dataset cache:
-# rm -f "../datasets/geoscreens_${TARGET_DATASET_VERSION}/dataset_cache.pkl"
-# rm -f "../datasets/geoscreens_${TARGET_DATASET_VERSION}/dataset_cache_train.pkl"
-# rm -f "../datasets/geoscreens_${TARGET_DATASET_VERSION}/dataset_cache_valid.pkl"
+Clear dataset cache:
+rm -f "../datasets/geoscreens_${TARGET_DATASET_VERSION}/dataset_cache.pkl"
+rm -f "../datasets/geoscreens_${TARGET_DATASET_VERSION}/dataset_cache_train.pkl"
+rm -f "../datasets/geoscreens_${TARGET_DATASET_VERSION}/dataset_cache_valid.pkl"
 
 # Set num_classes:
 NUM_CLASSES=$(jq '.categories | max_by(.value) | .id' ../datasets/geoscreens_${TARGET_DATASET_VERSION}/geoscreens_${TARGET_DATASET_VERSION}.json)
