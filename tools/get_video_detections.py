@@ -218,7 +218,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--num_devices",
         type=int,
-        default=10,
+        default=5,
         help="Used to split the work across multiple processes. "
         "This process will only run on videos where: video_idx MOD num_devices == device",
     )

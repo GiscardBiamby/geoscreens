@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import pickle
 import shutil
 import sys
 from multiprocessing.dummy import Pool
@@ -14,7 +15,7 @@ from decord import VideoReader, cpu
 from omegaconf import DictConfig, OmegaConf
 from tqdm.contrib.bells import tqdm
 
-from geoscreens.consts import FRAMES_METADATA_PATH, VIDEO_PATH
+from geoscreens.consts import EXTRACTED_FRAMES_PATH, FRAMES_METADATA_PATH, VIDEO_PATH
 from geoscreens.utils import get_indices_to_sample, load_json, save_json, timeit_context
 
 
@@ -85,6 +86,14 @@ def save_frames_metadata(config: DictConfig, files):
         }
     out_path = FRAMES_METADATA_PATH.parent / f"{FRAMES_METADATA_PATH.stem}_new.json"
     save_json(out_path, frame_info)
+
+    # Save list of files for each video:
+    results = {}
+    for file in tqdm(files):
+        video_id = file.stem
+        frames = sorted(os.listdir(EXTRACTED_FRAMES_PATH / f"{video_id}"))
+        results[video_id] = [{"video_id": video_id, "file_path": f"{video_id}/{f}"} for f in frames]
+    pickle.dump(results, open(FRAMES_METADATA_PATH.parent / "frames_list.pkl", "wb"))
 
 
 def process_videos_muli_cpu(config: DictConfig):
