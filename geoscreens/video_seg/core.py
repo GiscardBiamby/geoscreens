@@ -6,24 +6,14 @@ import time
 from collections import Counter, OrderedDict
 from copy import deepcopy
 from datetime import datetime, timedelta
-from io import BytesIO
 from multiprocessing import Pool
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union, cast
 
-import numpy as np
 import pandas as pd
-from IPython.display import Image, display
-from termcolor import colored
-from tqdm.contrib.bells import tqdm
 
 from geoscreens.consts import DETECTIONS_PATH
-from geoscreens.data import (
-    get_all_geoguessr_split_metadata,
-    get_all_metadata,
-    get_metadata_df,
-    load_detections,
-)
+from geoscreens.data import get_all_geoguessr_split_metadata, load_detections
 from geoscreens.utils import save_json
 
 from .ground_truth import compare_to_gt, load_gt, seg_gt

@@ -1,4 +1,5 @@
 import json
+import pickle
 import sys
 from argparse import ArgumentParser
 from copy import deepcopy
@@ -23,10 +24,11 @@ from PIL import Image
 from pytorch_lightning import LightningDataModule, seed_everything
 from tqdm.contrib.bells import tqdm
 
-from geoscreens.data.metadata import get_geoguessr_split_metadata
+from geoscreens.consts import FRAMES_METADATA_PATH
+from geoscreens.data.metadata import FramesList, get_geoguessr_split_metadata
 from geoscreens.geo_data import GeoScreensDataModule
 from geoscreens.models import load_model_from_path
-from geoscreens.utils import load_json
+from geoscreens.utils import Singleton, load_json
 
 __all__ = ["GeoscreensInferenceDataset", "get_model_for_inference", "get_detections"]
 
@@ -72,11 +74,12 @@ class GeoscreensInferenceDataset(object):
         )
         self.tfm = tfm
         self.class_map = class_map
+        all_frames = FramesList().get()
         self.frames = []
         record_id: int = 0
-        print("video_ids")
         for video_id in self.video_ids:
-            frames = sorted((self.frames_path / video_id).glob("*.jpg"))
+            frames = [self.frames_path / fp for fp in all_frames[video_id]]
+            # frames = sorted((self.frames_path / video_id).glob("*.jpg"))
             print("Num frames found: ", len(frames))
             for f in frames:
                 record = BaseRecord((ImageRecordComponent(),))
