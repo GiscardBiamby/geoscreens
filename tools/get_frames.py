@@ -112,7 +112,7 @@ def process_videos_muli_cpu(config: DictConfig):
     id_list = id_list.union(set(frame_info.keys()))
 
     files = sorted(VIDEO_PATH.glob("*.mp4"))
-    files = [f for f in files if f.stem not in id_list][:500]
+    files = [f for f in files if f.stem not in id_list]
     print("Num videos: ", len(files))
 
     num_workers = config.get("num_workers", 16)
