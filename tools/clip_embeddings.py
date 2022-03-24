@@ -172,9 +172,10 @@ def get_image_anns(args):
 
 def get_embeddings_worker(args, gpu_id: int, anns):
     args.gpu = gpu_id
+    print(f"gpu_id: {args.gpu}, num_items: {len(anns)}")
     device = torch.device(f"cuda:{gpu_id}")
     model, preprocess = clip.load(args.model_name, device=device)
-    if "checkpoint" in args and args.checkpoint is not None:
+    if "checkpoint" in args and args.checkpoint is not None and args.checkpoint:
         load_pretrained(args, device, model, args.checkpoint)
     model = model.to(device)
 
@@ -197,7 +198,7 @@ def get_embeddings(args):
     for i, ann in enumerate(anns):
         gpu_id = i % args.num_gpu
         gpu_to_anns[gpu_id].append(ann)
-    worker_args = ((deepcopy(args), gpu_id, anns) for gpu_id, ids in gpu_to_anns.items())
+    worker_args = ((deepcopy(args), gpu_id, _anns) for gpu_id, _anns in gpu_to_anns.items())
 
     # Compute
     with Pool(processes=args.num_gpu) as pool:
@@ -210,7 +211,7 @@ def get_embeddings(args):
     print("Total embeddings: ", len(all_embeddings))
     save_file = (
         Path("/shared/gbiamby/geo/models/clip_ft")
-        / args.model_name.lower().replace("/", "")
+        / (args.model_name.lower().replace("/", "") + "_zeroshot")
         / f"{args.data_file_name}_{args.data_type}.pkl"
     )
     print("Saving results to: ", save_file)
@@ -264,9 +265,10 @@ if __name__ == "__main__":
     parser.add_argument(
         "--checkpoint",
         type=Path,
-        default=Path(
-            "/home/gbiamby/proj/im2gps_kb/lib/open_clip/logs/lr=1e-06_wd=0.1_agg=True_model=ViT-B/32_batchsize=96_workers=4_date=2022-03-15-04-33-55/checkpoints/epoch_2.pt"
-        ),
+        # default=Path(
+        #     "/home/gbiamby/proj/im2gps_kb/lib/open_clip/logs/lr=1e-06_wd=0.1_agg=True_model=ViT-B/32_batchsize=96_workers=4_date=2022-03-15-04-33-55/checkpoints/epoch_2.pt"
+        # ),
+        default=None,
         help="Path to model checkpoint. If None then loads off the shelf pretrained CLIP",
     )
     args = parser.parse_args()
